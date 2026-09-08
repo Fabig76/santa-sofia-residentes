@@ -57,6 +57,20 @@ function setFieldManualRequired(selector, required) {
   if (required) f.setAttribute('data-required-manual', '1');
   else f.removeAttribute('data-required-manual');
 }
+
+// Construir la clave de lookup de parqueadero combinando tipo + celda
+function getParqLookupKey(n) {
+  const tipo = val('#parq' + n + 'Tipo');
+  const celda = val('#parq' + n + 'Celda');
+  if (!celda) return '';
+  // Si el usuario ya escribio "Moto 60" o "Carro 60" en el campo, respetarlo
+  const trimmed = String(celda).trim();
+  if (/^(moto|carro)\s/i.test(trimmed)) return trimmed;
+  // Si no, anteponer el tipo del selector si esta seleccionado
+  if (tipo) return tipo + ' ' + trimmed;
+  return trimmed;
+}
+
 function isFieldManualRequired(selector) {
   const f = $(selector);
   return !!(f && f.getAttribute('data-required-manual') === '1');
@@ -165,8 +179,16 @@ function poblarFormulario(r) {
   setVal('#telFijoProp', r.telFijoProp);
   // v2 — Parqueaderos y matrículas
   setVal('#parq1Celda', r.parq1Celda);
+  if (r.parq1Celda) {
+    const m = String(r.parq1Celda).trim().match(/^(moto|carro)\s/i);
+    if (m) { const el = $('#parq1Tipo'); if (el) el.value = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(); }
+  }
   setVal('#parq1Mat', r.parq1Mat);
   setVal('#parq2Celda', r.parq2Celda);
+  if (r.parq2Celda) {
+    const m = String(r.parq2Celda).trim().match(/^(moto|carro)\s/i);
+    if (m) { const el = $('#parq2Tipo'); if (el) el.value = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(); }
+  }
   setVal('#parq2Mat', r.parq2Mat);
   setVal('#matriculaApto', r.matriculaApto);
   setChecked('requiereRevision', r.requiereRevision === 'Sí');
@@ -369,9 +391,9 @@ function recolectar() {
     celProp: val('#celProp'),
     telFijoProp: val('#telFijoProp'),
     // v2 — Parqueaderos y matrículas
-    parq1Celda: val('#parq1Celda'),
+    parq1Celda: getParqLookupKey(1),
     parq1Mat:   val('#parq1Mat'),
-    parq2Celda: val('#parq2Celda'),
+    parq2Celda: getParqLookupKey(2),
     parq2Mat:   val('#parq2Mat'),
     matriculaApto: val('#matriculaApto'),
     requiereRevision: checked('requiereRevision'),
@@ -667,6 +689,7 @@ async function lookupMatApto() {
 // Lookup de matrícula de un parqueadero
 async function lookupMatParq(n) {
   const celda = val('#parq' + n + 'Celda');
+  const tipoSel = val('#parq' + n + 'Tipo');
   const matField = '#parq' + n + 'Mat';
   const msgTarget = 'parq' + n + '-lookup-msg';
 
@@ -676,15 +699,23 @@ async function lookupMatParq(n) {
     setLookupMsg(msgTarget, '', null);
     return;
   }
+  // Si no hay tipo y la celda no incluye "Moto" o "Carro", advertir
+  if (!tipoSel && !/^(moto|carro)\s/i.test(String(celda).trim())) {
+    setLookupMsg(msgTarget,
+      '<strong>⚠️ Selecciona el tipo de parqueadero</strong> (Moto o Carro) para autocompletar la matrícula. Sin el tipo, el sistema no puede distinguir entre parqueaderos de moto y de carro que comparten la misma numeración.',
+      'warn');
+    return;
+  }
   if (!APPS_SCRIPT_URL) {
     setLookupMsg(msgTarget, 'No se puede consultar: el formulario no está conectado.', 'err');
     return;
   }
 
-  setLookupMsg(msgTarget, '<strong>Buscando matrícula de la celda ' + celda + '...</strong>', 'warn');
+  const lookupKey = getParqLookupKey(n);
+  setLookupMsg(msgTarget, '<strong>Buscando matrícula de la celda ' + lookupKey + '...</strong>', 'warn');
 
   try {
-    const url = APPS_SCRIPT_URL + '?action=lookupMatParq&celda=' + encodeURIComponent(celda);
+    const url = APPS_SCRIPT_URL + '?action=lookupMatParq&celda=' + encodeURIComponent(lookupKey);
     const resp = await fetch(url, { method: 'GET', redirect: 'follow' });
     const data = await resp.json();
     if (!data.ok) {

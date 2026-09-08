@@ -495,3 +495,21 @@ footer.site-footer {
   background: #FFF;
 }
 footer.site-footer a { color: var(--azul); }
+
+
+select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--gris-borde);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+select:focus {
+  outline: none;
+  border-color: var(--azul);
+  box-shadow: 0 0 0 3px rgba(31, 95, 74, 0.15);
+}
