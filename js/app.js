@@ -392,8 +392,10 @@ function recolectar() {
     telFijoProp: val('#telFijoProp'),
     // v2 — Parqueaderos y matrículas
     parq1Celda: getParqLookupKey(1),
+    parq1Tipo: val('#parq1Tipo'),
     parq1Mat:   val('#parq1Mat'),
     parq2Celda: getParqLookupKey(2),
+    parq2Tipo: val('#parq2Tipo'),
     parq2Mat:   val('#parq2Mat'),
     matriculaApto: val('#matriculaApto'),
     requiereRevision: checked('requiereRevision'),
@@ -754,6 +756,15 @@ async function lookupMatParq(n) {
     if (sel === '#apto') lookupMatApto();
     else if (sel === '#parq1Celda') lookupMatParq(1);
     else if (sel === '#parq2Celda') lookupMatParq(2);
+  });
+});
+// Cambio: cuando cambia el tipo, también dispara el lookup si ya hay número
+['#parq1Tipo', '#parq2Tipo'].forEach(sel => {
+  const el = $(sel);
+  if (el) el.addEventListener('change', () => {
+    const n = sel === '#parq1Tipo' ? 1 : 2;
+    const celda = val('#parq' + n + 'Celda');
+    if (celda) lookupMatParq(n);
   });
 });
 

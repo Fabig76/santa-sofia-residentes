@@ -513,3 +513,15 @@ select:focus {
   border-color: var(--azul);
   box-shadow: 0 0 0 3px rgba(31, 95, 74, 0.15);
 }
+
+
+input[readonly] {
+  background-color: #f5f5f5;
+  color: var(--azul-osc);
+  cursor: not-allowed;
+}
+
+/* Hacer que el selector se vea más prominente */
+select {
+  font-weight: 600;
+}
