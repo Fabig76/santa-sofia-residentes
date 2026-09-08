@@ -381,9 +381,10 @@ function buildCacheAptos() {
   const sh = ss.getSheetByName(MATRICULAS_APTOS);
   if (!sh) return cache;
   const last = sh.getLastRow();
-  if (last < 6) return cache;
-  // Santa Sofía: fila 5 headers. C: Apto, H: Matrícula, I: Estado del Folio.
-  const data = sh.getRange(6, 1, last - 5, 9).getValues();
+  if (last < 2) return cache;
+  // Header esta en fila 1. Datos desde fila 2. Columnas: A=vacío B=Bloque C=Apto ... H=Matrícula I=Estado
+  // Leemos todo el rango disponible y filtramos por apto no vacío en columna C.
+  const data = sh.getRange(2, 1, last - 1, 9).getValues();
   for (const row of data) {
     const apto = normApto(row[2]);
     const mat  = String(row[7] || '').trim();
@@ -415,9 +416,9 @@ function buildCacheParq() {
   const sh = ss.getSheetByName(MATRICULAS_PARQ);
   if (!sh) return cache;
   const last = sh.getLastRow();
-  if (last < 6) return cache;
-  // Santa Sofía: fila 5 headers. B: Tipo, C: Nro Parqueadero, H: Matrícula, I: Estado.
-  const data = sh.getRange(6, 1, last - 5, 9).getValues();
+  if (last < 2) return cache;
+  // Header en fila 1. Datos desde fila 2. Columnas: B=Tipo C=Nro D=Ubicación H=Matrícula I=Estado
+  const data = sh.getRange(2, 1, last - 1, 9).getValues();
   for (const row of data) {
     const tipoRaw = String(row[1] || '').trim();
     const unidadRaw = String(row[2] || '').trim();
