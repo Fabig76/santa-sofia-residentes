@@ -51,7 +51,7 @@ function doGet(e) {
       if (!row) {
         return jsonOut({ ok: false, error: 'No se encontró ningún registro con ese N° de formulario y N° de apartamento. Verifica los datos e inténtalo de nuevo.' });
       }
-      return jsonOut({ ok: true, row: rowToObject(row) });
+      return jsonOut({ ok: true, row: rowToObject(row.values) });
     }
     if (action === 'lookupMatApto') {
       const apto = String(e.parameter.apto || '').trim();
@@ -483,6 +483,7 @@ function getNextFormId() {
   }
   return 'SS-' + String(max + 1).padStart(4, '0');
 }
+
 
 // Convierte una fila (array de 143) en objeto JS para enviar al cliente en modo edición
 function rowToObject(rowArr) {
