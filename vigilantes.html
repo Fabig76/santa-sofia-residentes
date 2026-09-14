@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device=device-scale=1.0">
+  <meta name="theme-color" content="#1F5F4A">
+  <title>Vigilancia — Consulta de Residentes — Santa Sofía Club Residencial V.I.S</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="stylesheet" href="assets/styles.css">
+  <style>
+    .vig-banner {
+      background: #1F5F4A;
+      color: white;
+      padding: 14px 20px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    .vig-banner strong { font-size: 16px; display: block; margin-bottom: 4px; }
+
+    .persona-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 10px 14px;
+      margin-bottom: 6px;
+      background: white;
+      border: 1px solid var(--gris-borde);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .persona-row .nombre {
+      font-weight: 700;
+      color: var(--azul-osc);
+      font-size: 16px;
+    }
+    .persona-row .parentesco {
+      color: var(--gris-med);
+      font-style: italic;
+      text-align: right;
+      align-self: center;
+    }
+
+    .item-row {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 14px;
+      margin-bottom: 6px;
+      background: white;
+      border: 1px solid var(--gris-borde);
+      border-radius: 6px;
+    }
+    .item-row .tipo-badge {
+      font-weight: 700;
+      color: var(--azul-osc);
+      font-size: 13px;
+      text-align: center;
+      padding: 6px;
+      background: var(--azul-claro);
+      border-radius: 6px;
+    }
+    .item-row .info {
+      font-size: 14px;
+    }
+    .item-row .info .titulo {
+      font-weight: 600;
+      color: var(--gris-tx);
+      margin-bottom: 2px;
+    }
+    .item-row .info .detalle {
+      font-size: 12px;
+      color: var(--gris-med);
+    }
+
+    .seccion-resultado {
+      margin-top: 14px;
+    }
+    .seccion-resultado h3 {
+      color: var(--azul-osc);
+      margin-bottom: 8px;
+      font-size: 17px;
+    }
+    .seccion-resultado h3 .contador {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--gris-med);
+      margin-left: 8px;
+    }
+
+    .empty-state {
+      padding: 16px;
+      background: #F8F8F8;
+      border-radius: 8px;
+      color: var(--gris-med);
+      text-align: center;
+      font-size: 13px;
+      font-style: italic;
+    }
+
+    .buscador-grande {
+      margin-bottom: 24px;
+    }
+    .buscador-grande input {
+      font-size: 18px;
+      padding: 14px 16px;
+    }
+    .buscador-grande button {
+      font-size: 16px;
+      padding: 14px 20px;
+    }
+
+    .parqueadero-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 12px 14px;
+      margin-bottom: 6px;
+      background: white;
+      border: 1px solid var(--gris-borde);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .parqueadero-row .celda {
+      font-weight: 700;
+      color: var(--azul-osc);
+      font-size: 15px;
+    }
+    .parqueadero-row .matricula {
+      color: var(--gris-tx);
+    }
+    .parqueadero-row .matricula-empty {
+      color: #C9A227;
+      font-style: italic;
+      font-size: 12px;
+    }
+
+    .apto-header {
+      background: var(--azul-claro);
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .apto-header .num {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--azul-osc);
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <img src="assets/logo.png" alt="Logo Santa Sofía Club Residencial" class="logo">
+    <div class="header-text">
+      <h1>Santa Sofía Club Residencial V.I.S</h1>
+      <p class="nit">NIT 901142051-3 · Armenia, Quindío</p>
+      <p class="sub">Vigilancia — Consulta de residentes por apartamento</p>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div class="card">
+    <div class="vig-banner">
+      <strong>👮 Acceso solo para personal de vigilancia</strong>
+      Esta página es de SOLO CONSULTA. No permite modificar ni registrar datos.
+      Use esta información únicamente para identificar residentes en portería.
+    </div>
+
+    <div id="alert-vig" class="alert hidden" role="alert"></div>
+
+    <!-- ====== BUSCADOR ====== -->
+    <div class="section" style="padding:18px;">
+      <div class="section-head" style="background:transparent;">
+        <span style="color:var(--azul-osc); font-weight:700;">Buscar apartamento</span>
+      </div>
+      <div class="section-body" style="padding-top:14px;">
+        <div class="buscador-grande">
+          <div class="row row-2">
+            <div class="field">
+              <label>N° de apartamento <span class="req">*</span></label>
+              <input type="text" id="aptoBusqueda" placeholder="Ej: 311, 1122, 262" autocomplete="off">
+            </div>
+            <div class="field" style="display:flex; align-items:end;">
+              <button type="button" class="btn btn-primary" id="btnBuscar">🔍 Consultar</button>
+            </div>
+          </div>
+        </div>
+        <div id="resultado"></div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  <p>
+    Santa Sofía Club Residencial V.I.S · NIT 901142051-3 · CR 27 # 44-25, Armenia, Quindío<br>
+    <a href="mailto:santasofia.clubresidencial@gmail.com">santasofia.clubresidencial@gmail.com</a>
+  </p>
+</footer>
+
+<script src="js/vigilantes.js"></script>
+
+</body>
+</html>
