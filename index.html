@@ -609,23 +609,6 @@
   }
   document.getElementById('bicis-container').innerHTML = html;
 
-  // Dispositivos (3)
-  html = '';
-  for (let i = 1; i <= 3; i++) {
-    html += '<div class="subsection-title">Dispositivo #' + i + '</div>' +
-      '<div class="row">' +
-        '<div class="field"><label>Tipo</label><select id="disp' + i + 'Tipo">' +
-          '<option value="">—</option><option>Llavero</option><option>Tag</option></select></div>' +
-        '<div class="field"><label>N° / código del dispositivo</label><input type="text" id="disp' + i + 'Codigo"></div>' +
-      '</div>' +
-      '<div class="row row-3">' +
-        '<div class="field"><label>Placa asociada</label><input type="text" id="disp' + i + 'Placa"></div>' +
-        '<div class="field"><label>Fecha de entrega</label><input type="date" id="disp' + i + 'Fecha"></div>' +
-        '<div class="field"><label>Recibe (nombre)</label><input type="text" id="disp' + i + 'Recibe"></div>' +
-      '</div>';
-  }
-  document.getElementById('dispositivos-container').innerHTML = html;
-
   // Mascotas (2)
   html = '';
   for (let i = 1; i <= 2; i++) {
