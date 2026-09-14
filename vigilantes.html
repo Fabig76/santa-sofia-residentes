@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device=device-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1F5F4A">
   <title>Vigilancia — Consulta de Residentes — Santa Sofía Club Residencial V.I.S</title>
   <meta name="robots" content="noindex, nofollow">
@@ -147,6 +147,28 @@
       font-size: 24px;
       font-weight: 700;
       color: var(--azul-osc);
+    }
+
+    /* ====== Responsive para celular ====== */
+    @media (max-width: 600px) {
+      .persona-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+      .persona-row .parentesco {
+        text-align: left;
+      }
+      .parqueadero-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+      .item-row {
+        grid-template-columns: 52px 1fr;
+        gap: 8px;
+      }
+      .apto-header .num {
+        font-size: 20px;
+      }
     }
   </style>
 </head>
