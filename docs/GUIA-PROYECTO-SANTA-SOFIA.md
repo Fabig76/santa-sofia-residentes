@@ -512,6 +512,32 @@ Esperado: residentes=12, menores=8, vehiculos=4, motos=4, bicis=4, mascotas=10, 
 
 **Lección**: Después de CADA deploy (nueva implementación o nueva versión), verificar la URL del Web App y actualizar `APPS_SCRIPT_URL` en los 3 JS si cambió. Regla: `grep -n "APPS_SCRIPT_URL" js/*.js` debe mostrar la MISMA URL que el deploy activo.
 
+### Bug 14-Sep-2026: "no está dejando editar el formato" — `#form-card` anidado en `#view-create`
+
+**Síntoma reportado por operador**: "no está dejando editar el formato de los residentes". El residente iba a la pestaña "✏️ Editar mi registro", llenaba N° de formulario + N° de apto, hacía click en "Buscar mi registro", y NO veía el formulario. Solo aparecía el alert "Registro cargado" y el indicador "Modo edición activo" pero ninguna de las 12 secciones del form.
+
+**Causa raíz**: `#form-card` está ANIDADO dentro de `#view-create` en `index.html` (línea 50 dentro del `<div id="view-create">` de la línea 49). Al abrir la pestaña "Editar mi registro", `setMode('edit')` ocultaba `#view-create`. Al buscar, `buscarRegistro()` ocultaba `#view-edit` y mostraba `#form-card` — pero su padre `#view-create` seguía con clase `hidden`, así que el form era invisible.
+
+**Por qué no se detectó antes**: El alert `alert-create` y `editIndicator` están en otras posiciones del DOM (no dentro de view-create), así que seguían apareciendo y hacían creer que el form se había cargado. Solo el form-card completo (con las 12 secciones) estaba invisible.
+
+**Fix (commit b6acc1f)**: En `buscarRegistro()` en `js/app.js`, agregar `$('#view-create').classList.remove('hidden')` entre ocultar view-edit y mostrar form-card.
+
+```js
+$('#view-edit').classList.add('hidden');
++ // FIX: #form-card está anidado dentro de #view-create...
++ $('#view-create').classList.remove('hidden');
+$('#form-card').classList.remove('hidden');
+```
+
+**Verificación end-to-end** (con SS-0002 / apto 262 = YURY ESTEFFANIA GARCIA ROA, el más completo con 2 residentes + 2 vehículos):
+1. Lookup → ok con datos completos (nombreProp=YURY ESTEFFANIA GARCIA ROA, ccProp=1.094.923.637, matriculaApto=280-226067, parq1Celda=Carro 119)
+2. `formCard_h=false`, `viewCreate_h=false`, `viewEdit_h=true`, `editIndicator_h=false` → form visible
+3. Submit → respuesta "¡Registro actualizado!" con numForm SS-0002 preservado (NO "creado")
+4. Re-lookup confirma persistencia del cambio en Sheet
+5. Mismo flujo probado en producción (https://fabig76.github.io/santa-sofia-residentes/) → funciona
+
+**Lección arquitectónica**: Cualquier sección/form que se muestre tanto en modo create como edit NO debe estar anidada dentro de `#view-create` o `#view-edit`. O se saca a un contenedor neutral, o se manejan los toggles de los padres explícitamente. Esto aplica también a `success-card` (que también está dentro de view-create — por eso en modo edit funciona, pero es frágil).
+
 ---
 
 ## 15. Pendiente opcional (solo con OK del operador)
@@ -554,10 +580,16 @@ santa-sofia-residentes/
 
 ---
 
-## 17. Commits relevantes (14-Sep-2026)
+## 17. Commits relevantes
+
+### 14-Sep-2026 (sesión tarde — fix crítico edición + cambios de copy)
 
 ```
-6b6288c (HEAD -> main, origin/main) docs: manual de residentes para llenar el formulario
+baa4f36 (HEAD -> main, origin/main) docs: renombrar radio 'Tenedor / Otro' a 'Encargado o administrador del inmueble'
+b8a7ed7 docs: renombrar seccion 2 a 'Datos del encargado o administrador del inmueble'
+b6acc1f fix: mostrar form-card al cargar registro en modo editar
+4fac4fd docs: actualizar secciones 17 y 18 del GUIA con info final
+6b6288c docs: manual de residentes para llenar el formulario
 5d6ab21 assets: imagenes del manual de residentes
 6a7c3b6 fix: corregir viewport y responsive del portal vigilantes para celular
 410f170 docs: actualizar GUIA con v1.5, aptos de prueba y 2 bugs nuevos
@@ -578,6 +610,32 @@ c08fe01 fix: deduplicar moto 60 (marcar como ambigua)
 23662b9 feat: agregar 115 matriculas reales desde archivo bienes santa sofia V1
 db31268 feat: formulario residentes santa sofia
 ```
+
+### Cambios de copy (commits b8a7ed7 + baa4f36, 14-Sep-2026)
+
+Solicitados por el operador para mejorar la terminología legal del formulario:
+
+**Sección 2** (antes era "Datos del arrendatario / tenedor"):
+- **Antes**: "Datos del arrendatario / tenedor (si aplica)" / "Llénala solo si tú eres arrendatario o tenedor."
+- **Después**: "Datos del encargado o administrador del inmueble (si aplica)" / "Llénala solo si tú eres el encargado o administrador del inmueble y no el propietario."
+- Archivos: `index.html`, `manual-residentes.html`, este `GUIA-PROYECTO-SANTA-SOFIA.md`
+
+**Sección 0 radio "Diligencia como"** (tercera opción):
+- **Antes**: "Tenedor / Otro"
+- **Después**: "Encargado o administrador del inmueble"
+- **IMPORTANTE — lo que se preservó para NO romper nada**:
+  - El `value` interno del radio sigue siendo `"Tenedor / Otro"` (lo que se guarda en el Sheet)
+  - La validación del backend (`apps-script/Codigo.gs` línea 211: `['Propietario','Arrendatario','Tenedor / Otro']`) NO se tocó → sigue aceptando el submit
+  - Registros existentes en el Sheet con `diligencia="Tenedor / Otro"` siguen funcionando en modo edición (setRadio matchea por value, no por label)
+- Archivos: `index.html` (etiqueta visible), `js/app.js` (mensaje de validación línea 477), `manual-residentes.html` (descripción)
+
+**Si en el futuro se quiere que el Sheet también diga "Encargado o administrador del inmueble"** en la columna `diligencia` para registros nuevos (no solo la etiqueta visible), hay que:
+1. Cambiar el `value` del radio a "Encargado o administrador del inmueble"
+2. Actualizar la lista de validación del backend en `apps-script/Codigo.gs`
+3. Migrar registros existentes del Sheet (script de migración que cambie "Tenedor / Otro" → "Encargado o administrador del inmueble")
+4. Redeploy del backend de Apps Script
+
+Esto requiere decisión y planificación, por eso no se hizo en esta sesión (el operador pidió "que nada se rompa nada").
 
 ---
 
