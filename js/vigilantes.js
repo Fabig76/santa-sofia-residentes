@@ -7,7 +7,7 @@
 
 // Token de acceso para vigilantes (solo lectura)
 const VIGILANTES_TOKEN="Vq7pT3nL" + "wK9hBxY2" + "mC4fD8sR" + "5jN6vP1a";
-const APPS_SCRIPT_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwX6R7SYoXBkYKNvCKFD1kSflFYnU2FuZI_2VZbqOfe5-A8EoN098Ce7z3ZuA2eCOj4-g/exec';
+const APPS_SCRIPT_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxAnuZ7t1EqLHp-HlHbqbCsYw6p7Ueezpy37YwzgGPK1mnfrCeENNiXhOH-1Bd_hbgZLg/exec';
 
 const $ = (s, ctx = document) => ctx.querySelector(s);
 const $$ = (s, ctx = document) => Array.from(ctx.querySelectorAll(s));

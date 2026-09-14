@@ -8,7 +8,7 @@
    ============================================================ */
 
 // URL del Web App de Google Apps Script (se pegará después del despliegue manual en santasofia.clubresidencial@gmail.com)
-const APPS_SCRIPT_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwX6R7SYoXBkYKNvCKFD1kSflFYnU2FuZI_2VZbqOfe5-A8EoN098Ce7z3ZuA2eCOj4-g/exec';
+const APPS_SCRIPT_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxAnuZ7t1EqLHp-HlHbqbCsYw6p7Ueezpy37YwzgGPK1mnfrCeENNiXhOH-1Bd_hbgZLg/exec';
 
 // Constantes de UI
 const $  = (s, ctx = document) => ctx.querySelector(s);
