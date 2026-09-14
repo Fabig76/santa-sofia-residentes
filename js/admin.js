@@ -4,8 +4,8 @@
    ============================================================ */
 
 // Token de acceso (debe coincidir con el token en Apps Script)
-const ADMIN_TOKEN = 'GFxrMXXE9WAi_exItdb4uDoIjsItFjfJ';
-const APPS_SCRIPT_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycby1fBBIUqd5-KL4MKwUDhO9U5tw8JX7K6SVS5lS0NfkL4f4WUmxzZJhKwMetdLkh4OaPw/exec';
+const ADMIN_TOKEN='GFxrMXXE9WAi_exItdb4uDoIjsItFjfJ';
+const APPS_SCRIPT_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwX6R7SYoXBkYKNvCKFD1kSflFYnU2FuZI_2VZbqOfe5-A8EoN098Ce7z3ZuA2eCOj4-g/exec';
 
 const $ = (s, ctx = document) => ctx.querySelector(s);
 const $$ = (s, ctx = document) => Array.from(ctx.querySelectorAll(s));
