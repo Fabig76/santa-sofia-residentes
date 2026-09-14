@@ -474,7 +474,7 @@ function validar() {
   }
 
   required('#apto', 'Indica tu N° de apartamento.');
-  requiredRadio('diligencia', 'Selecciona si eres propietario, arrendatario o tenedor.');
+  requiredRadio('diligencia', 'Selecciona si eres propietario, arrendatario o encargado/administrador del inmueble.');
   required('#nombreProp', 'Nombre del titular es obligatorio.');
   required('#ccProp', 'Cédula del titular es obligatoria.');
   const c = val('#correoProp');
