@@ -249,6 +249,107 @@ Si token inválido: `{"ok":false,"error":"Token invalido."}`
 
 ---
 
+## 10.1 Portal de vigilantes (vigilantes.html) — Solo consulta
+
+URL: https://fabig76.github.io/santa-sofia-residentes/vigilantes.html
+
+**Propósito**: El personal de vigilancia consulta quién vive en cada apartamento **sin ver datos personales** (cédula, correo, celular, datos del propietario).
+
+**Datos que SÍ muestra**:
+- N° de apartamento
+- Residentes (mayores de edad): nombre + parentesco
+- Menores de edad: nombre + edad + parentesco
+- Vehículos y motos: marca, color, modelo, placa
+- Parqueaderos: celda (ej: "Carro 119") + matrícula
+- Mascotas: tipo, nombre, raza, color, sexo, fecha última vacuna
+
+**Datos que NO muestra (privacidad)**:
+- Datos del propietario (nombre, cédula, correo, celular)
+- Datos del arrendatario/tenedor
+- Datos del tercero autorizado a usar parqueadero
+- Datos de la inmobiliaria
+- Datos de contacto de emergencia
+- Datos de autorización de datos
+- Datos de firma
+- Hash dedupe
+
+**Características**:
+- Página `noindex, nofollow` (no aparece en Google)
+- Acceso restringido por token separado (`VIGILANTES_TOKEN` en `js/vigilantes.js` y `Codigo.gs`)
+- Banner: "Acceso solo para personal de vigilancia. Esta página es de SOLO CONSULTA."
+- NO tiene inputs de escritura ni modificación: solo el campo de búsqueda y un botón de consultar
+
+### Flujo del vigilante
+
+1. Ingresa el N° de apartamento en el campo de búsqueda
+2. Click en "🔍 Consultar"
+3. El sistema llama a `?action=vigilantesLookup&token=X&apto=Y`
+4. El backend devuelve SOLO los datos visibles (filtrados server-side)
+5. La página muestra las 5 secciones: Residentes, Menores, Vehículos, Parqueaderos, Mascotas
+
+### Endpoint backend del portal vigilantes
+
+| Endpoint | Método | Descripción |
+|---|---|---|
+| `?action=vigilantesLookup&token=X&apto=Y` | GET | Devuelve SOLO datos visibles para vigilancia |
+
+Si token inválido: `{"ok":false,"error":"Token invalido."}`
+
+### Ejemplo visual del flujo
+
+```
+┌─────────────────────────────────────────────────┐
+│  👮 Acceso solo para personal de vigilancia     │
+│  Esta página es de SOLO CONSULTA.               │
+│  Use esta información únicamente para            │
+│  identificar residentes en portería.            │
+│                                                  │
+│  Buscar apartamento                              │
+│  N° de apartamento: [311]                       │
+│  [🔍 Consultar]                                  │
+└─────────────────────────────────────────────────┘
+                       ↓
+┌─────────────────────────────────────────────────┐
+│  Apartamento 311                                 │
+│  2 personas · 2 vehículos · 1 parqueadero · 1 mascota│
+│                                                  │
+│  👥 Residentes (mayores de edad) 2               │
+│  ┌─────────────────────────────────────────┐    │
+│  │ Fandry Johanna Muñoz Laguna    esposa    │    │
+│  │ Pablo Mauricio Borja Pimiento  esposo    │    │
+│  └─────────────────────────────────────────┘    │
+│                                                  │
+│  👶 Menores de edad 0                            │
+│  (No hay menores registrados en este apartamento)│
+│                                                  │
+│  🚗 Vehículos y motos 2                          │
+│  ┌─────────────────────────────────────────┐    │
+│  │ 🚗 Megane 1 - sedan                      │    │
+│  │    gris perla · 2008 · PFM367           │    │
+│  │ 🏍️ hero - hunk 160r                    │    │
+│  │    negro mate · 2026 · EJP61H           │    │
+│  └─────────────────────────────────────────┘    │
+│                                                  │
+│  🅿️ Parqueaderos 1                              │
+│  ┌─────────────────────────────────────────┐    │
+│  │ Carro 119      280-215020               │    │
+│  └─────────────────────────────────────────┘    │
+│                                                  │
+│  🐾 Mascotas 1                                   │
+│  ┌─────────────────────────────────────────┐    │
+│  │ 🐕 Perro Max                            │    │
+│  │    Labrador · dorado · Macho            │    │
+│  │    vacuna: 2026-01-15                   │    │
+│  └─────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────┘
+```
+
+### Privacidad: por qué se usan dos tokens separados
+
+El `ADMIN_TOKEN` da acceso completo (incluye datos personales del titular y permite escribir/modificar). El `VIGILANTES_TOKEN` solo da acceso de lectura a datos no personales. Esto significa que si el link de vigilancia se filtra, NO expone datos personales. Y si el link admin se filtra, no expone a TODOS los vigilantes.
+
+---
+
 ## 11. Despliegue
 
 ### GitHub Pages
@@ -285,6 +386,15 @@ Archivo origen: `Codigo_gs_Santa_Sofia_v1.3.gs` (md5 `84c6cdccbbca3155f30ab544a9
 2. **Hoja `Entregas`** se crea automáticamente con el primer uso
 3. **Fix de defensa en profundidad** en lookup, lookupMatApto, lookupMatParq (devuelven JSON error rápido en <1s si los parámetros están vacíos, antes se colgaban 60s)
 4. **Fix manejo de mascotas**: acepta strings "Sí"/"No" (antes solo booleanos true/false)
+
+### Cambios v1.3 → v1.4
+
+1. **Portal de vigilantes nuevo** (`vigilantesLookup`):
+   - Endpoint de solo CONSULTA para el personal de vigilancia
+   - Devuelve: residentes (nombres + parentesco), menores (nombres + edad), vehículos, parqueaderos, mascotas
+   - **NO devuelve**: datos del propietario, teléfonos, correos, cédulas ni ningún dato personal
+   - Token separado `VIGILANTES_TOKEN` para que comprometer el token de vigilancia no exponga el panel admin
+2. **Helpers nuevos en backend**: `extractResidentesVisibles`, `extractMenoresVisibles`, `extractMascotasVisibles`, `extractParqueaderos`
 
 ---
 
