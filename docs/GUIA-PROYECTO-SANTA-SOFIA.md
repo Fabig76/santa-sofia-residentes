@@ -368,17 +368,16 @@ NO hacer `git push` sin OK explícito del operador.
 3. El archivo `Codigo.gs` actual es la versión v1.3 (14-Sep-2026 20:16)
 4. **Cada "Nueva implementación" genera URL nueva** — hay que actualizar `APPS_SCRIPT_URL` en `js/app.js` y `js/admin.js` y hacer commit + push.
 
-#### URL activa (v1.3, deploy #4 del 14-Sep-2026)
+#### URL activa (v1.5, deploy #8 del 14-Sep-2026 22:53)
 
 ```
-https://script.google.com/macros/s/AKfycbwX6R7SYoXBkYKNvCKFD1kSflFYnU2FuZI_2VZbqOfe5-A8EoN098Ce7z3ZuA2eCOj4-g/exec
+https://script.google.com/macros/s/AKfycby8fjAwe8y2AF06L1oOAIH8I7fA4JOIBVSnIvuculImafsEb6QPXjcq58na-BDd4Hirdg/exec
 ```
 
-Deploy ID: `AKfycbwX6R7SYoXBkYKNvCKFD1kSflFYnU2FuZI_2VZbqOfe5-A8EoN098Ce7z3ZuA2eCOj4-g`
+Deploy ID: `AKfycby8fjAwe8y2AF06L1oOAIH8I7fA4JOIBVSnIvuculImafsEb6QPXjcq58na-BDd4Hirdg`
 
-Archivo origen: `Codigo_gs_Santa_Sofia_v1.3.gs` (md5 `84c6cdccbbca3155f30ab544a98a2f6e`)
-- Drive: https://drive.google.com/file/d/1vHLQV8-Io_Betx2F7Ybzk3l2OTBIm3Er/view?usp=drivesdk
-- Instrucciones de deploy paso a paso: https://drive.google.com/file/d/1Fefd5AcAUlu0nQaPzFIUjN9IRDQcwL5o/view?usp=drivesdk
+Archivo origen: `Codigo_gs_Santa_Sofia_v1.5.gs` (md5 `7de27291dc8851da3d3faedae0ff896d`)
+- Drive: https://drive.google.com/file/d/12doJNa_zlrEtkZOwImoo0Sowz1xmtTDq/view?usp=drivesdk
 
 ### Cambios v1.2 → v1.3
 
@@ -395,6 +394,23 @@ Archivo origen: `Codigo_gs_Santa_Sofia_v1.3.gs` (md5 `84c6cdccbbca3155f30ab544a9
    - **NO devuelve**: datos del propietario, teléfonos, correos, cédulas ni ningún dato personal
    - Token separado `VIGILANTES_TOKEN` para que comprometer el token de vigilancia no exponga el panel admin
 2. **Helpers nuevos en backend**: `extractResidentesVisibles`, `extractMenoresVisibles`, `extractMascotasVisibles`, `extractParqueaderos`
+
+### Cambios v1.4 → v1.5 (14-Sep-2026 22:53)
+
+1. **Fix crítico `vigilantesLookup`**: reescrito para usar `rowToObject` (probado y funcionando) en lugar de `extractPlacas`, que estaba devolviendo vacío en el deploy.
+   - **Causa raíz**: `extractPlacas` estaba roto o era una versión vieja en el deploy. El endpoint `lookup` (que usa `rowToObject`) sí devolvía los vehículos correctamente, pero `vigilantesLookup` (que usaba `extractPlacas`) no.
+   - **Solución**: `vigilantesLookup` ahora llama `rowToObject(row.values)` y filtra/mappea los campos visibles. Esto elimina la dependencia del helper problemático.
+
+---
+
+## 11.1 Aptos de prueba para verificación
+
+| Apto | N° Form | Datos que debe mostrar el portal vigilantes |
+|---|---|---|
+| **262** | SS-0002 | 2 residentes (Fandry esposa + Pablo esposo), 2 vehículos (Megane PFM367 + Moto EJP61H), 1 parqueadero (Carro 119), sin mascotas ni menores |
+| **1122** | SS-0001 | Yazmin Rocha (titular) sin residentes adicionales, sin vehículos, sin parqueadero, sin mascotas (todo vacío) |
+
+Para verificar el portal vigilantes, consultar `apto=262` (el más completo) y `apto=1122` (el vacío).
 
 ---
 
@@ -474,6 +490,28 @@ Esperado: residentes=12, menores=8, vehiculos=4, motos=4, bicis=4, mascotas=10, 
 
 **Fix v1.3**: Acepta strings "Sí"/"Si"/"si" → "Sí" y "No"/"no" → "No".
 
+### Bug v1.4: `extractPlacas` devolvía vacío en vigilantesLookup
+
+**Síntoma**: El portal vigilantes mostraba "Vehículos y motos 0" aunque el Sheet tenía los datos.
+
+**Causa raíz**: El endpoint `vigilantesLookup` usaba `extractPlacas` que estaba roto o era una versión vieja en el deploy. El endpoint `lookup` (que usa `rowToObject`) SÍ devolvía los vehículos correctamente — esto confirmó que el problema era específico de `extractPlacas`, no de los datos ni del Sheet.
+
+**Diagnóstico clave**: Comparar dos endpoints contra el mismo apto:
+- `lookup&numForm=SS-0002&apto=262` → devolvía `vehiculos: [Megane PFM367, Moto EJP61H]` ✓
+- `vigilantesLookup&token=X&apto=262` → NO devolvía `vehiculos` ✗
+
+**Fix v1.5**: Reescribir `vigilantesLookup` para usar `rowToObject(row.values)` y mappear/filtrar los campos visibles. No depender del helper problemático.
+
+### Bug v1.4→v1.5: URL del Web App cambió al hacer "Nueva versión"
+
+**Síntoma**: Después de re-deployar como "Nueva versión", el portal seguía consultando el backend viejo.
+
+**Causa raíz**: Cada "Nueva implementación" genera una URL NUEVA. Pero cuando se hace "Nueva versión" (desde Administrar implementaciones), la URL PUEDE cambiar también. Los archivos JS (`app.js`, `admin.js`, `vigilantes.js`) seguían apuntando a la URL vieja (`AKfycbxAnuZ7...` de v5) cuando el backend ya estaba en `AKfycby8fjA...` (v6/v7/v8).
+
+**Fix**: Actualizar `APPS_SCRIPT_URL` en los 3 JS con la URL correcta (commit `9939a7e`).
+
+**Lección**: Después de CADA deploy (nueva implementación o nueva versión), verificar la URL del Web App y actualizar `APPS_SCRIPT_URL` en los 3 JS si cambió. Regla: `grep -n "APPS_SCRIPT_URL" js/*.js` debe mostrar la MISMA URL que el deploy activo.
+
 ---
 
 ## 15. Pendiente opcional (solo con OK del operador)
@@ -497,12 +535,14 @@ santa-sofia-residentes/
 ├── README.md               # descripción breve
 ├── index.html              # formulario público (12 secciones)
 ├── admin.html              # panel admin (gestión llaveros/tags)
+├── vigilantes.html         # portal vigilantes (solo consulta)
 ├── assets/
 │   ├── styles.css
 │   └── logo.png
 ├── js/
 │   ├── app.js              # lógica formulario público
-│   └── admin.js            # lógica panel admin
+│   ├── admin.js            # lógica panel admin
+│   └── vigilantes.js       # lógica portal vigilantes
 ├── apps-script/
 │   └── Codigo.gs           # backend (NO commiteado al repo, tiene ADMIN_TOKEN)
 ├── data/                   # Excels auxiliares (locales, no producción)
