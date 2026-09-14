@@ -1,6 +1,6 @@
 # GUÍA DEL PROYECTO — Santa Sofía Residentes
 
-Última actualización: 14-Sep-2026 (después del fix del script que rompía mascotas y emergencias)
+Última actualización: 14-Sep-2026 (auditoría integral + fix adminLookup "placas", deploy Versión 9)
 
 ---
 
@@ -376,7 +376,7 @@ NO hacer `git push` sin OK explícito del operador.
 3. El archivo `Codigo.gs` actual es la versión v1.3 (14-Sep-2026 20:16)
 4. **Cada "Nueva implementación" genera URL nueva** — hay que actualizar `APPS_SCRIPT_URL` en `js/app.js` y `js/admin.js` y hacer commit + push.
 
-#### URL activa (v1.5, deploy #8 del 14-Sep-2026 22:53)
+#### URL activa (deploy #9 "Versión 9" del 14-Sep-2026 12:58 — fix adminLookup placas)
 
 ```
 https://script.google.com/macros/s/AKfycby8fjAwe8y2AF06L1oOAIH8I7fA4JOIBVSnIvuculImafsEb6QPXjcq58na-BDd4Hirdg/exec
@@ -408,6 +408,20 @@ Archivo origen: `Codigo_gs_Santa_Sofia_v1.5.gs` (md5 `7de27291dc8851da3d3faedae0
 1. **Fix crítico `vigilantesLookup`**: reescrito para usar `rowToObject` (probado y funcionando) en lugar de `extractPlacas`, que estaba devolviendo vacío en el deploy.
    - **Causa raíz**: `extractPlacas` estaba roto o era una versión vieja en el deploy. El endpoint `lookup` (que usa `rowToObject`) sí devolvía los vehículos correctamente, pero `vigilantesLookup` (que usaba `extractPlacas`) no.
    - **Solución**: `vigilantesLookup` ahora llama `rowToObject(row.values)` y filtra/mappea los campos visibles. Esto elimina la dependencia del helper problemático.
+
+### Cambios v1.5 → v1.6 (14-Sep-2026 12:58)
+
+1. **Fix crítico `adminLookup`** (devolvía SIN la llave `placas`): el panel admin mostraba "Este apartamento no tiene vehículos ni motos registrados" AUN teniendo vehículos — imposible asignar tags/llaveros a una placa específica.
+   - **Causa raíz**: `adminLookup` seguía usando el helper `extractPlacas(row.values)` (el mismo que ya estaba roto en `vigilantesLookup` y se corrigió en v1.5, pero se olvidó corregir en el endpoint admin).
+   - **Solución**: `adminLookup` ahora deriva `placas` desde `obj.vehiculos` + `obj.motos` (salida de `rowToObject`, probado), mismo patrón que `vigilantesLookup`.
+   - **Verificado en producción**: `adminLookup&apto=262` devuelve 2 placas (PFM367 + EJP61H) y el panel admin las renderiza con detalle. `apto=1122` devuelve `placas: []` sin error.
+
+2. **Auditoría integral (read-only, sin tocar el Sheet en producción)**:
+   - Sheet `Registros`: 24 registros (SS-0001 → SS-0024), 143 columnas intactas, sin duplicados.
+   - 9 apartamentos con parqueadero vacío → confirma que "parqueadero opcional" era necesario y correcto.
+   - Form público: los 7 contenedores dinámicos pueblan correctamente (residentes, menores, vehículos, motos, bicis, mascotas, emergencias), cero errores JS.
+   - Endpoints verificados y funcionando: `nextId`, `lookupMatApto`, `lookupMatParq`, `lookup`, `vigilantesLookup`, `adminLookup`.
+   - Tipo de parqueadero va embebido en `parq1Celda` ("Carro 119", "Moto 127"); NO hay columna "Tipo" separada.
 
 ---
 
