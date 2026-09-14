@@ -112,7 +112,7 @@ URL: https://fabig76.github.io/santa-sofia-residentes/
 12 secciones:
 - 0 Encabezado (datos del conjunto readonly)
 - 1 Datos del propietario
-- 2 Datos del arrendatario / tenedor (si aplica)
+- 2 Datos del encargado o administrador del inmueble (si aplica)
 - 3 Autorización de uso de parqueadero a tercero (si aplica)
 - 4 Inmobiliaria y/o representante del propietario (si aplica)
 - 5 Datos de los residentes del apartamento (mayores de edad, hasta 4)
@@ -265,7 +265,7 @@ URL: https://fabig76.github.io/santa-sofia-residentes/vigilantes.html
 
 **Datos que NO muestra (privacidad)**:
 - Datos del propietario (nombre, cédula, correo, celular)
-- Datos del arrendatario/tenedor
+- Datos del encargado o administrador del inmueble
 - Datos del tercero autorizado a usar parqueadero
 - Datos de la inmobiliaria
 - Datos de contacto de emergencia
