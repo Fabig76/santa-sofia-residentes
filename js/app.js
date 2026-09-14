@@ -150,6 +150,10 @@ async function buscarRegistro() {
     state.numForm = data.row.numForm;
     poblarFormulario(data.row);
     $('#view-edit').classList.add('hidden');
+    // FIX: #form-card está anidado dentro de #view-create. Al buscar desde la pestaña
+    // "Editar mi registro", setMode('edit') ocultó #view-create. Hay que volver a
+    // mostrarlo para que el form sea visible.
+    $('#view-create').classList.remove('hidden');
     $('#form-card').classList.remove('hidden');
     showAlert('alert-create', 'Registro cargado. Modifica los campos que necesites y haz clic en "Guardar cambios".', 'info');
     // Marca el formulario como "modo edición"
