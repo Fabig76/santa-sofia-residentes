@@ -554,10 +554,19 @@ santa-sofia-residentes/
 
 ---
 
-## 17. Commits relevantes
+## 17. Commits relevantes (14-Sep-2026)
 
 ```
-a840214 (HEAD -> main, origin/main) fix: eliminar bloque dispositivos del script inline
+6b6288c (HEAD -> main, origin/main) docs: manual de residentes para llenar el formulario
+5d6ab21 assets: imagenes del manual de residentes
+6a7c3b6 fix: corregir viewport y responsive del portal vigilantes para celular
+410f170 docs: actualizar GUIA con v1.5, aptos de prueba y 2 bugs nuevos
+9939a7e fix: actualizar APPS_SCRIPT_URL a version 8 (URL correcta)
+3368521 chore: actualizar APPS_SCRIPT_URL a v1.4 deployada
+c5c2444 docs: agregar seccion portal vigilantes (v1.4)
+d416a77 feat: portal vigilantes (vigilantes.html + vigilantes.js)
+a3f8524 docs: actualizar GUIA-PROYECTO con panel admin, v1.3 y fix script
+a840214 fix: eliminar bloque dispositivos del script inline
 3ce8c98 chore: actualizar APPS_SCRIPT_URL a v1.3 deployada
 1a8bc1a feat: agregar panel admin para gestion de llaveros/tags
 98f3d38 feat: quitar seccion llaveros/tags del form publico + actualizar finalidades
@@ -567,16 +576,50 @@ c08fe01 fix: deduplicar moto 60 (marcar como ambigua)
 9f73ba5 fix: reconstruir lookup desde fila 2 + reasignar matriculas reales Bienes V1
 36ad529 feat: actualizar archivo matriculas con datos del sheet nativo oficial
 23662b9 feat: agregar 115 matriculas reales desde archivo bienes santa sofia V1
+db31268 feat: formulario residentes santa sofia
 ```
 
 ---
 
 ## 18. Contactos y recursos
 
-- Operador: Fabio Iglesias (fabig76@gmail.com)
-- Cuenta Apps Script: santasofia.clubresidencial@gmail.com
-- Carpeta Drive del proyecto: https://drive.google.com/drive/folders/1GHR3HITyjPlIFbGrEYZWVAuMewdSzxF7
-- Página pública: https://fabig76.github.io/santa-sofia-residentes/
-- Panel admin: https://fabig76.github.io/santa-sofia-residentes/admin.html
-- Sheet respuestas: https://docs.google.com/spreadsheets/d/1xL359rDrhb3_qbhY-tm2MfPXKBqbAehC3zWzsMv1PUo/edit
-- Sheet matrículas: https://docs.google.com/spreadsheets/d/1qEnC5BCRags2r_RHQiB0LjK6Or1rx31Gvopr22-n12w/edit
+- **Operador**: Fabio Iglesias (fabig76@gmail.com)
+- **Cuenta Apps Script**: santasofia.clubresidencial@gmail.com
+- **Carpeta Drive del proyecto**: https://drive.google.com/drive/folders/1GHR3HITyjPlIFbGrEYZWVAuMewdSzxF7
+- **Carpeta Drive operador (para deploys)**: https://drive.google.com/drive/folders/1JUN1ERZzkPH9KY98a7bd-2TGfK6f44U_
+
+### Portales (GitHub Pages)
+
+| Portal | URL | Descripción |
+|---|---|---|
+| Residentes (formulario público) | https://fabig76.github.io/santa-sofia-residentes/ | Llenar datos por apartamento |
+| Admin (administración) | https://fabig76.github.io/santa-sofia-residentes/admin.html | Gestión de llaveros/tags |
+| Vigilantes (portería) | https://fabig76.github.io/santa-sofia-residentes/vigilantes.html | Solo consulta |
+| Manual residentes | https://fabig76.github.io/santa-sofia-residentes/manual-residentes.html | Guía paso a paso |
+
+### Sheets
+
+- **Sheet principal de respuestas**: https://docs.google.com/spreadsheets/d/1xL359rDrhb3_qbhY-tm2MfPXKBqbAehC3zWzsMv1PUo/edit
+  Pestañas: `Registros` (143 cols), `Maestros`
+- **Sheet de matrículas lookup**: https://docs.google.com/spreadsheets/d/1qEnC5BCRags2r_RHQiB0LjK6Or1rx31Gvopr22-n12w/edit
+  Pestañas: `Resumen y Matrículas`, `Apartamentos`, `Parqueaderos`
+
+### Backend (Apps Script)
+
+- **Web App URL activa**: https://script.google.com/macros/s/AKfycby8fjAwe8y2AF06L1oOAIH8I7fA4JOIBVSnIvuculImafsEb6QPXjcq58na-BDd4Hirdg/exec
+- **Deploy ID**: `AKfycby8fjAwe8y2AF06L1oOAIH8I7fA4JOIBVSnIvuculImafsEb6QPXjcq58na-BDd4Hirdg`
+- **Versión actual**: v1.5 (deploy #8, 14-Sep-2026 22:53)
+- **Archivo origen**: `Codigo_gs_Santa_Sofia_v1.5.gs` (md5 `7de27291dc8851da3d3faedae0ff896d`)
+  - Drive: https://drive.google.com/file/d/12doJNa_zlrEtkZOwImoo0Sowz1xmtTDq/view?usp=drivesdk
+
+### Aptos de prueba
+
+| Apto | N° Form | Datos esperados en el portal vigilantes |
+|---|---|---|
+| **262** | SS-0002 | 2 residentes, 2 vehículos, 1 parqueadero, sin mascotas/menores (el más completo) |
+| **1122** | SS-0001 | Sin residentes, sin vehículos, sin parqueadero (todo vacío) |
+
+### Manual para residentes (Drive)
+
+- **HTML**: https://drive.google.com/file/d/17o2UH-mBs-Bws43jx5fY5cpC17jMtDJ8/view?usp=drivesdk
+- **URL pública**: https://fabig76.github.io/santa-sofia-residentes/manual-residentes.html
