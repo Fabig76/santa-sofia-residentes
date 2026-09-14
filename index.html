@@ -157,7 +157,7 @@
 
             <h4 style="margin-top:18px; color:var(--azul-osc);">Parqueaderos</h4>
             <p style="margin:6px 0 12px 0; padding:12px 14px; background:#FFF7E6; border-left:5px solid #C9A227; border-radius:4px; font-size:14px; color:#5A4500; line-height:1.5;">
-              <strong style="font-size:15px;">⚠️ Importante:</strong> los parqueaderos de <strong>Moto</strong> y <strong>Carro</strong> comparten la misma numeración pero tienen matrículas inmobiliarias distintas. Por eso el sistema <strong>no puede identificar la matrícula correcta si no elige primero el tipo</strong>.
+              <strong style="font-size:15px;">⚠️ Importante:</strong> si su apartamento <strong>no tiene parqueadero asignado</strong>, deje los campos vacíos y continúe. Los parqueaderos de <strong>Moto</strong> y <strong>Carro</strong> comparten la misma numeración pero tienen matrículas inmobiliarias distintas. Por eso el sistema <strong>no puede identificar la matrícula correcta si no elige primero el tipo</strong>.
               <br><br>
               <strong>Orden correcto para llenar:</strong>
               <br>
@@ -169,20 +169,23 @@
             </p>
             <div class="row row-3">
               <div class="field">
-                <label>Tipo de parqueadero 1 <span class="req">*</span></label>
-                <select id="parq1Tipo" required>
+                <label>Tipo de parqueadero 1 (opcional)</label>
+                <select id="parq1Tipo">
                   <option value="">-- Seleccione primero --</option>
                   <option value="Moto">Moto</option>
                   <option value="Carro">Carro</option>
                 </select>
+                <div class="err-msg"></div>
               </div>
               <div class="field">
-                <label>N° de celda 1 <span class="req">*</span></label>
-                <input type="text" id="parq1Celda" placeholder="Solo el número, ejemplo: 60" required>
+                <label>N° de celda 1 (opcional)</label>
+                <input type="text" id="parq1Celda" placeholder="Solo el número, ejemplo: 60">
+                <div class="err-msg"></div>
               </div>
               <div class="field">
                 <label>Matrícula Parqueadero 1</label>
                 <input type="text" id="parq1Mat" placeholder="Se autocompleta al elegir tipo + número" readonly>
+                <div class="err-msg"></div>
               </div>
             </div>
             <div id="parq1-lookup-msg" class="lookup-msg hidden"></div>
@@ -195,14 +198,17 @@
                   <option value="Moto">Moto</option>
                   <option value="Carro">Carro</option>
                 </select>
+                <div class="err-msg"></div>
               </div>
               <div class="field">
                 <label>N° de celda 2 (opcional)</label>
                 <input type="text" id="parq2Celda" placeholder="Solo el número, ejemplo: 34">
+                <div class="err-msg"></div>
               </div>
               <div class="field">
                 <label>Matrícula Parqueadero 2</label>
                 <input type="text" id="parq2Mat" placeholder="Se autocompleta al elegir tipo + número" readonly>
+                <div class="err-msg"></div>
               </div>
             </div>
             <div id="parq2-lookup-msg" class="lookup-msg hidden"></div>

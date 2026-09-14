@@ -81,6 +81,14 @@ El Sheet nativo tiene 68 números compartidos entre carro y moto (ejemplo: `Carr
 
 Frontend autocompleta correctamente cuando el residente escribe `Carro 109` o `Moto 109`. Si escribe solo `109`, el sistema NO puede resolver y marca `requiereManual=true` (correcto, necesita tipo).
 
+### Parqueadero opcional (14-Sep-2026)
+
+Algunos apartamentos NO tienen parqueadero asignado (ni carro ni moto). El formulario permite dejar los campos de parqueadero 1 y 2 vacíos. Regla de validación:
+
+- Si deja vacíos tanto "Tipo" como "N° de celda", el envío continúa (apto sin parqueadero).
+- Si llena solo uno de los dos (tipo sin celda, o celda sin tipo), se bloquea pidiendo completar el otro.
+- La matrícula del parqueadero sigue autocompletándose por lookup cuando hay tipo + celda válidos.
+
 ---
 
 ## 8. Archivos del proyecto

@@ -487,6 +487,26 @@ function validar() {
     showError('#matriculaApto', 'Para continuar, debe escribir la matrícula inmobiliaria porque no está disponible en la base de la administración.');
     ok = false;
   }
+  // Parqueaderos — opcionales. Si el residente llena uno de los dos campos, debe llenar ambos.
+  const parq1TipoV = val('#parq1Tipo');
+  const parq1CeldaV = val('#parq1Celda');
+  if (parq1TipoV && !parq1CeldaV) {
+    showError('#parq1Celda', 'Si elige el tipo de parqueadero, escriba el N° de celda.');
+    ok = false;
+  } else if (!parq1TipoV && parq1CeldaV) {
+    showError('#parq1Tipo', 'Si escribe el N° de celda, elija primero el tipo (Moto o Carro).');
+    ok = false;
+  }
+  const parq2TipoV = val('#parq2Tipo');
+  const parq2CeldaV = val('#parq2Celda');
+  if (parq2TipoV && !parq2CeldaV) {
+    showError('#parq2Celda', 'Si elige el tipo de parqueadero 2, escriba el N° de celda.');
+    ok = false;
+  } else if (!parq2TipoV && parq2CeldaV) {
+    showError('#parq2Tipo', 'Si escribe el N° de celda 2, elija primero el tipo (Moto o Carro).');
+    ok = false;
+  }
+
   if (val('#parq1Celda') && isFieldManualRequired('#parq1Mat') && !val('#parq1Mat')) {
     showError('#parq1Mat', 'Escriba la matrícula del parqueadero 1 porque no está disponible en la base de la administración.');
     ok = false;
