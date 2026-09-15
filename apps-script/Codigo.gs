@@ -16,7 +16,13 @@
 const SHEET_ID = '1xL359rDrhb3_qbhY-tm2MfPXKBqbAehC3zWzsMv1PUo';
 const SHEET_NAME = 'Registros';
 const HEADER_ROW = 1;
-const NUM_COLS = 143; // 0..142 (era 138, ahora 143 con K..Q expandidos)
+const NUM_COLS = 191; // 143 + 48 (veh 3-4: 12, mot 3-4: 12, masc 3-4: 20, parq 3-4: 4)
+
+// Token de acceso admin (CAMBIAR EN PRODUCCION a uno seguro generado aparte)
+const ADMIN_TOKEN='GFxrMXXE9WAi_exItdb4uDoIjsItFjfJ';
+
+// Hoja paralela para registro de entregas/devoluciones
+const ENTREGAS_SHEET_NAME = 'Entregas';
 
 // Sheet de matrículas (referencia, solo lectura)
 const MATRICULAS_SHEET_ID = '1qEnC5BCRags2r_RHQiB0LjK6Or1rx31Gvopr22-n12w';
@@ -34,6 +40,45 @@ const COL_FECHA_REG = 1;
 const COL_FECHA_EDIT = 2;
 const COL_APTO = 3;
 // Col 142 (última) = Hash Dedupe
+
+
+// Verificar token admin
+function checkAdminToken(token) {
+  return String(token || '').trim() === ADMIN_TOKEN;
+}
+
+// Extrae vehiculos y motos del row
+function extractPlacas(rowArr) {
+  const out = [];
+  for (let i = 0; i < 2; i++) {
+    const off = 61 + i*6;
+    const placa = String(rowArr[off + 3] || '').trim();
+    if (placa) {
+      out.push({ tipo: 'Vehiculo', marca: String(rowArr[off]||'').trim(), clase: String(rowArr[off+1]||'').trim(), color: String(rowArr[off+2]||'').trim(), placa, modelo: String(rowArr[off+4]||'').trim(), tag: String(rowArr[off+5]||'').trim() });
+    }
+  }
+  for (let i = 0; i < 2; i++) {
+    const off = 73 + i*6;
+    const placa = String(rowArr[off + 3] || '').trim();
+    if (placa) {
+      out.push({ tipo: 'Moto', marca: String(rowArr[off]||'').trim(), clase: String(rowArr[off+1]||'').trim(), color: String(rowArr[off+2]||'').trim(), placa, modelo: String(rowArr[off+4]||'').trim(), tag: String(rowArr[off+5]||'').trim() });
+    }
+  }
+  return out;
+}
+
+// Asegura que la hoja Entregas exista con sus encabezados
+function getEntregasSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sh = ss.getSheetByName(ENTREGAS_SHEET_NAME);
+  if (!sh) {
+    sh = ss.insertSheet(ENTREGAS_SHEET_NAME);
+    sh.appendRow(['Fecha','Tipo','N° Formulario','N° Apto','Llaveros','Tags','Placas Asignadas','Placas Devueltas','Observaciones','Admin']);
+    sh.getRange(1,1,1,10).setFontWeight('bold').setBackground('#1F5F4A').setFontColor('white');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
 
 // ---------------------------------------------------------------------
 // doGet: lookup / nextId / lookupMatApto / lookupMatParq
@@ -63,6 +108,53 @@ function doGet(e) {
       const r = lookupMatriculaParq(celda);
       return jsonOut(r);
     }
+
+    // ==== Endpoints administrativos (requieren token) ====
+    if (action === 'adminLookup') {
+      const token = String(e.parameter.token || '');
+      if (!checkAdminToken(token)) return jsonOut({ ok: false, error: 'Token invalido.' });
+      const apto = String(e.parameter.apto || '').trim();
+      if (!apto) return jsonOut({ ok: false, error: 'Falta N° de apartamento.' });
+      const row = findRowByApto(apto);
+      if (!row) return jsonOut({ ok: false, error: 'No existe registro para el apartamento ' + apto + '.' });
+      const obj = rowToObject(row.values, row.rowNumber);
+      // Deriva placas desde rowToObject (mismo patrón que vigilantesLookup v1.5)
+      // en lugar del helper extractPlacas, que driftea en deploy y devuelve vacío.
+      const placas = [
+        ...(obj.vehiculos || []).filter(v => v && String(v.placa || '').trim())
+          .map(v => ({ tipo: 'Vehiculo', marca: v.marca, clase: v.tipo, color: v.color, placa: v.placa, modelo: v.modelo, tag: v.tag })),
+        ...(obj.motos || []).filter(m => m && String(m.placa || '').trim())
+          .map(m => ({ tipo: 'Moto', marca: m.marca, clase: m.tipo, color: m.color, placa: m.placa, modelo: m.modelo, tag: m.tag })),
+      ];
+
+      // Buscar ultimo registro de entregas para este apto
+      let asignacion = null;
+      let devolucion = null;
+      try {
+        const sh = getEntregasSheet();
+        const ent = sh.getDataRange().getValues();
+        for (let i = ent.length - 1; i >= 1; i--) {
+          if (String(ent[i][3]).trim() === apto) {
+            const tipo = String(ent[i][1] || '').trim();
+            if (tipo === 'Entrega' && !asignacion) {
+              asignacion = { fecha: ent[i][0], llaveros: ent[i][4], tags: ent[i][5], placas: String(ent[i][6]||''), obs: String(ent[i][8]||'') };
+            } else if (tipo === 'Devolucion' && !devolucion) {
+              devolucion = { fecha: ent[i][0], llaveros: ent[i][4], tags: ent[i][5], obs: String(ent[i][8]||'') };
+            }
+            if (asignacion && devolucion) break;
+          }
+        }
+      } catch (e) { /* hoja Entregas vacia */ }
+
+      return jsonOut({
+        ok: true,
+        apto: obj,
+        placas: placas,
+        asignaciones: asignacion,
+        devolucion: devolucion,
+      });
+    }
+
     return jsonOut({ ok: false, error: 'Acción no reconocida.' });
   } catch (err) {
     return jsonOut({ ok: false, error: String(err && err.message || err) });
@@ -80,6 +172,34 @@ function doPost(e) {
     } else if (e && e.parameter) {
       payload = e.parameter;
     }
+
+    // Endpoints administrativos (requieren token)
+    const action = String(payload.action || '').trim();
+    if (action === 'asignarDispositivos') {
+      if (!checkAdminToken(payload.token)) return jsonOut({ ok: false, error: 'Token invalido.' });
+      const numForm = String(payload.numForm || '').trim();
+      const apto = String(payload.apto || '').trim();
+      const llaveros = parseInt(payload.llaveros || 0, 10);
+      const tags = parseInt(payload.tags || 0, 10);
+      const placasArr = Array.isArray(payload.placas) ? payload.placas : [];
+      const placasTxt = placasArr.map(p => (p && p.placa) || '').filter(Boolean).join(', ');
+      const obs = String(payload.obs || '').trim();
+      const sh = getEntregasSheet();
+      sh.appendRow([new Date(), 'Entrega', numForm, apto, llaveros, tags, placasTxt, '', obs, 'admin']);
+      return jsonOut({ ok: true, message: 'Entrega registrada.' });
+    }
+    if (action === 'devolverDispositivos') {
+      if (!checkAdminToken(payload.token)) return jsonOut({ ok: false, error: 'Token invalido.' });
+      const numForm = String(payload.numForm || '').trim();
+      const apto = String(payload.apto || '').trim();
+      const llaveros = parseInt(payload.llaveros || 0, 10);
+      const tags = parseInt(payload.tags || 0, 10);
+      const obs = String(payload.obs || '').trim();
+      const sh = getEntregasSheet();
+      sh.appendRow([new Date(), 'Devolucion', numForm, apto, llaveros, tags, '', '', obs, 'admin']);
+      return jsonOut({ ok: true, message: 'Devolucion registrada.' });
+    }
+
     const result = submitRecord(payload);
     return jsonOut(result);
   } catch (err) {
@@ -241,9 +361,10 @@ function buildRowFromPayload(d, numForm, fechaRegistroOriginal) {
     v[49 + i*3 + 2] = String(m.parent || '').trim();
   }
 
-  // 6. Vehículos (2: 61-72)
+  // 6. Vehículos (2: 61-72) — el form permite hasta 4 pero se guardan máximo 4
+  //    en offsets 61+i*6 hasta 61+3*6=79 (cols 61-84 en el array).
   const veh = Array.isArray(d.vehiculos) ? d.vehiculos : [];
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 4; i++) {
     const x = veh[i] || {};
     v[61 + i*6 + 0] = String(x.marca || '').trim();
     v[61 + i*6 + 1] = String(x.tipo || '').trim();
@@ -253,7 +374,8 @@ function buildRowFromPayload(d, numForm, fechaRegistroOriginal) {
     v[61 + i*6 + 5] = String(x.tag || '').trim();
   }
 
-  // 6. Motos (2: 73-84)
+  // 6. Motos (4: 85-108, pero los 2 primeros son los originales 73-84 movidos aquí)
+  //    Se conservan los offsets originales (73-84) para no romper datos viejos.
   const mot = Array.isArray(d.motos) ? d.motos : [];
   for (let i = 0; i < 2; i++) {
     const x = mot[i] || {};
@@ -265,7 +387,7 @@ function buildRowFromPayload(d, numForm, fechaRegistroOriginal) {
     v[73 + i*6 + 5] = String(x.tag || '').trim();
   }
 
-  // 7. Bicicletas (2: 85-92)
+  // 7. Bicicletas (2: 85-92) — sin cambios
   const bic = Array.isArray(d.bicis) ? d.bicis : [];
   for (let i = 0; i < 2; i++) {
     const b = bic[i] || {};
@@ -275,23 +397,15 @@ function buildRowFromPayload(d, numForm, fechaRegistroOriginal) {
     v[85 + i*4 + 3] = String(b.serial || '').trim();
   }
 
-  // 8. Dispositivos (93-94 = llaveros/tags aut, 95-109 = 3 dispositivos)
+  // 8. Llaveros/Tags aut (93-94) — sin cambios
   v[93]             = d.llaverosAut != null && d.llaverosAut !== '' ? String(d.llaverosAut) : '';
   v[94]             = d.tagsAut != null && d.tagsAut !== '' ? String(d.tagsAut) : '';
-  const disp = Array.isArray(d.dispositivos) ? d.dispositivos : [];
-  for (let i = 0; i < 3; i++) {
-    const x = disp[i] || {};
-    v[95 + i*5 + 0] = String(x.tipo || '').trim();
-    v[95 + i*5 + 1] = String(x.codigo || '').trim();
-    v[95 + i*5 + 2] = String(x.placa || '').trim().toUpperCase();
-    v[95 + i*5 + 3] = String(x.fecha || '').trim();
-    v[95 + i*5 + 4] = String(x.recibe || '').trim();
-  }
+  // Dispositivos (95-109): legacy, vacío (la sección 8 fue removida del HTML público).
 
-  // 9. Mascotas (2: 110-129)
-  const mas = Array.isArray(d.mascotas) ? d.mascotas : [];
+  // 9. Mascotas 1-2 (110-129) — sin cambios
+  const mas12 = Array.isArray(d.mascotas) ? d.mascotas.slice(0, 2) : [];
   for (let i = 0; i < 2; i++) {
-    const m = mas[i] || {};
+    const m = mas12[i] || {};
     v[110 + i*10 + 0] = String(m.tipo || '').trim();
     v[110 + i*10 + 1] = String(m.nombre || '').trim();
     v[110 + i*10 + 2] = String(m.raza || '').trim();
@@ -304,7 +418,7 @@ function buildRowFromPayload(d, numForm, fechaRegistroOriginal) {
     v[110 + i*10 + 9] = String(m.poliza || '').trim();
   }
 
-  // 10. Emergencias (2: 130-135)
+  // 10. Emergencias 1-2 (130-135) — sin cambios
   const eme = Array.isArray(d.emergencias) ? d.emergencias : [];
   for (let i = 0; i < 2; i++) {
     const e = eme[i] || {};
@@ -313,7 +427,7 @@ function buildRowFromPayload(d, numForm, fechaRegistroOriginal) {
     v[130 + i*3 + 2] = String(e.tel || '').trim();
   }
 
-  // 11. Autorizaciones + firma
+  // 11. Autorizaciones + firma (136-141) — sin cambios
   v[136]            = d.autDatos   ? 'Sí' : 'No';
   v[137]            = d.autMenores ? 'Sí' : 'No';
   v[138]            = d.autCom     ? 'Sí' : 'No';
@@ -321,10 +435,57 @@ function buildRowFromPayload(d, numForm, fechaRegistroOriginal) {
   v[140]            = String(d.firmaCC || '').trim();
   v[141]            = String(d.firmaFecha || today);
 
-  // 142 = Hash Dedupe (sha256 de apto + cc titular + cc firma)
+  // 142 = Hash Dedupe — sin cambios
   const hashInput = (v[COL_APTO] || '') + '|' + (v[6] || '') + '|' + (v[140] || '');
   v[142]            = hashInput ? Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, hashInput)
                                   .map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('').slice(0, 16) : '';
+
+  // ====== NUEVO v1.7: posiciones adicionales al FINAL (no rompen datos existentes) ======
+  // Vehículos 3-4 (cols 143-154, 2 entradas × 6 cols)
+  const vehExtras = Array.isArray(d.vehiculos) ? d.vehiculos.slice(2, 4) : [];
+  for (let i = 0; i < 2; i++) {
+    const x = vehExtras[i] || {};
+    v[143 + i*6 + 0] = String(x.marca || '').trim();
+    v[143 + i*6 + 1] = String(x.tipo || '').trim();
+    v[143 + i*6 + 2] = String(x.color || '').trim();
+    v[143 + i*6 + 3] = String(x.placa || '').trim().toUpperCase();
+    v[143 + i*6 + 4] = String(x.modelo || '').trim();
+    v[143 + i*6 + 5] = String(x.tag || '').trim();
+  }
+
+  // Motos 3-4 (cols 155-166, 2 entradas × 6 cols)
+  const motExtras = Array.isArray(d.motos) ? d.motos.slice(2, 4) : [];
+  for (let i = 0; i < 2; i++) {
+    const x = motExtras[i] || {};
+    v[155 + i*6 + 0] = String(x.marca || '').trim();
+    v[155 + i*6 + 1] = String(x.tipo || '').trim();
+    v[155 + i*6 + 2] = String(x.color || '').trim();
+    v[155 + i*6 + 3] = String(x.placa || '').trim().toUpperCase();
+    v[155 + i*6 + 4] = String(x.modelo || '').trim();
+    v[155 + i*6 + 5] = String(x.tag || '').trim();
+  }
+
+  // Mascotas 3-4 (cols 167-186, 2 entradas × 10 cols)
+  const masExtras = Array.isArray(d.mascotas) ? d.mascotas.slice(2, 4) : [];
+  for (let i = 0; i < 2; i++) {
+    const m = masExtras[i] || {};
+    v[167 + i*10 + 0] = String(m.tipo || '').trim();
+    v[167 + i*10 + 1] = String(m.nombre || '').trim();
+    v[167 + i*10 + 2] = String(m.raza || '').trim();
+    v[167 + i*10 + 3] = String(m.color || '').trim();
+    v[167 + i*10 + 4] = String(m.sexo || '').trim();
+    v[167 + i*10 + 5] = String(m.vacuna || '').trim();
+    v[167 + i*10 + 6] = m.manejoEspecial === true || String(m.manejoEspecial) === 'true' ? 'Sí' : (m.manejoEspecial === false || String(m.manejoEspecial) === 'false' ? 'No' : '');
+    v[167 + i*10 + 7] = String(m.registro || '').trim();
+    v[167 + i*10 + 8] = String(m.aseguradora || '').trim();
+    v[167 + i*10 + 9] = String(m.poliza || '').trim();
+  }
+
+  // Parqueaderos 3-4 (cols 187-190)
+  v[187] = String(d.parq3Celda || '').trim();    // N° Parqueadero 3
+  v[188] = String(d.parq3Mat   || '').trim();    // Matrícula Parqueadero 3
+  v[189] = String(d.parq4Celda || '').trim();    // N° Parqueadero 4
+  v[190] = String(d.parq4Mat   || '').trim();    // Matrícula Parqueadero 4
 
   return v;
 }
@@ -532,6 +693,7 @@ function rowToObject(rowArr) {
       edad:   String(rowArr[50 + i*3] || ''),
       parent: String(rowArr[51 + i*3] || ''),
     })),
+    // Vehículos: lee 1-2 de cols 61-72 Y 3-4 de cols 143-154, los concatena.
     vehiculos: [0,1].map(i => ({
       marca: String(rowArr[61 + i*6] || ''),
       tipo:  String(rowArr[62 + i*6] || ''),
@@ -539,7 +701,15 @@ function rowToObject(rowArr) {
       placa: String(rowArr[64 + i*6] || ''),
       modelo:String(rowArr[65 + i*6] || ''),
       tag:   String(rowArr[66 + i*6] || ''),
-    })),
+    })).concat([0,1].map(i => ({
+      marca: String(rowArr[143 + i*6] || ''),
+      tipo:  String(rowArr[144 + i*6] || ''),
+      color: String(rowArr[145 + i*6] || ''),
+      placa: String(rowArr[146 + i*6] || ''),
+      modelo:String(rowArr[147 + i*6] || ''),
+      tag:   String(rowArr[148 + i*6] || ''),
+    }))),
+    // Motos: 1-2 de cols 73-84 Y 3-4 de cols 155-166.
     motos: [0,1].map(i => ({
       marca: String(rowArr[73 + i*6] || ''),
       tipo:  String(rowArr[74 + i*6] || ''),
@@ -547,7 +717,14 @@ function rowToObject(rowArr) {
       placa: String(rowArr[76 + i*6] || ''),
       modelo:String(rowArr[77 + i*6] || ''),
       tag:   String(rowArr[78 + i*6] || ''),
-    })),
+    })).concat([0,1].map(i => ({
+      marca: String(rowArr[155 + i*6] || ''),
+      tipo:  String(rowArr[156 + i*6] || ''),
+      color: String(rowArr[157 + i*6] || ''),
+      placa: String(rowArr[158 + i*6] || ''),
+      modelo:String(rowArr[159 + i*6] || ''),
+      tag:   String(rowArr[160 + i*6] || ''),
+    }))),
     bicis: [0,1].map(i => ({
       marca: String(rowArr[85 + i*4] || ''),
       color: String(rowArr[86 + i*4] || ''),
@@ -556,13 +733,7 @@ function rowToObject(rowArr) {
     })),
     llaverosAut: String(rowArr[93] || ''),
     tagsAut:     String(rowArr[94] || ''),
-    dispositivos: [0,1,2].map(i => ({
-      tipo:  String(rowArr[95 + i*5] || ''),
-      codigo:String(rowArr[96 + i*5] || ''),
-      placa: String(rowArr[97 + i*5] || ''),
-      fecha: String(rowArr[98 + i*5] || ''),
-      recibe:String(rowArr[99 + i*5] || ''),
-    })),
+    // Mascotas: 1-2 de cols 110-129 Y 3-4 de cols 167-186.
     mascotas: [0,1].map(i => ({
       tipo: String(rowArr[110 + i*10] || ''),
       nombre: String(rowArr[111 + i*10] || ''),
@@ -574,7 +745,18 @@ function rowToObject(rowArr) {
       registro: String(rowArr[117 + i*10] || ''),
       aseguradora: String(rowArr[118 + i*10] || ''),
       poliza: String(rowArr[119 + i*10] || ''),
-    })),
+    })).concat([0,1].map(i => ({
+      tipo: String(rowArr[167 + i*10] || ''),
+      nombre: String(rowArr[168 + i*10] || ''),
+      raza: String(rowArr[169 + i*10] || ''),
+      color: String(rowArr[170 + i*10] || ''),
+      sexo: String(rowArr[171 + i*10] || ''),
+      vacuna: String(rowArr[172 + i*10] || ''),
+      manejoEspecial: String(rowArr[173 + i*10] || ''),
+      registro: String(rowArr[174 + i*10] || ''),
+      aseguradora: String(rowArr[175 + i*10] || ''),
+      poliza: String(rowArr[176 + i*10] || ''),
+    }))),
     emergencias: [0,1].map(i => ({
       nombre: String(rowArr[130 + i*3] || ''),
       parent: String(rowArr[131 + i*3] || ''),
@@ -586,6 +768,11 @@ function rowToObject(rowArr) {
     firmaNom:   String(rowArr[139] || ''),
     firmaCC:    String(rowArr[140] || ''),
     firmaFecha: String(rowArr[141] || ''),
+    // v1.7 — Parqueaderos 3-4 (cols 187-190)
+    parq3Celda: String(rowArr[187] || ''),
+    parq3Mat:   String(rowArr[188] || ''),
+    parq4Celda: String(rowArr[189] || ''),
+    parq4Mat:   String(rowArr[190] || ''),
   };
 }
 

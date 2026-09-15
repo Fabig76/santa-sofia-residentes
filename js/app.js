@@ -321,7 +321,7 @@ function recolectar() {
     });
   }
   const veh = [];
-  for (let i = 1; i <= 2; i++) {
+  for (let i = 1; i <= 4; i++) {
     veh.push({
       marca: val(`#v${i}Marca`),
       tipo: val(`#v${i}Tipo`),
@@ -332,7 +332,7 @@ function recolectar() {
     });
   }
   const mot = [];
-  for (let i = 1; i <= 2; i++) {
+  for (let i = 1; i <= 4; i++) {
     mot.push({
       marca: val(`#mo${i}Marca`),
       tipo: val(`#mo${i}Tipo`),
@@ -362,7 +362,7 @@ function recolectar() {
     });
   }
   const mas = [];
-  for (let i = 1; i <= 2; i++) {
+  for (let i = 1; i <= 4; i++) {
     mas.push({
       tipo: val(`#masc${i}Tipo`),
       nombre: val(`#masc${i}Nombre`),
@@ -401,6 +401,12 @@ function recolectar() {
     parq2Celda: getParqLookupKey(2),
     parq2Tipo: val('#parq2Tipo'),
     parq2Mat:   val('#parq2Mat'),
+    parq3Celda: getParqLookupKey(3),
+    parq3Tipo: val('#parq3Tipo'),
+    parq3Mat:   val('#parq3Mat'),
+    parq4Celda: getParqLookupKey(4),
+    parq4Tipo: val('#parq4Tipo'),
+    parq4Mat:   val('#parq4Mat'),
     matriculaApto: val('#matriculaApto'),
     requiereRevision: checked('requiereRevision'),
     observMatriculas: val('#observMatriculas'),
