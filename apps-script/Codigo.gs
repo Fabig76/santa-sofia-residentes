@@ -232,6 +232,31 @@ function validarTagsDuplicados(apto, tagsPropuestos) {
   }
 }
 
+// Devuelve la lista completa de eventos del apto (hoja Entregas) ordenados del más reciente al más antiguo.
+function getHistorialApto(apto) {
+  try {
+    const sh = getEntregasSheet();
+    const ent = sh.getDataRange().getValues();
+    const eventos = [];
+    for (let i = 1; i < ent.length; i++) {
+      if (String(ent[i][3]).trim() !== apto) continue;
+      eventos.push({
+        fecha: ent[i][0],
+        tipo: String(ent[i][1] || '').trim(),
+        numForm: String(ent[i][2] || '').trim(),
+        llaveros: String(ent[i][4] || '').trim(),
+        tags: String(ent[i][5] || '').trim(),
+        obs: String(ent[i][8] || '').trim(),
+      });
+    }
+    // Ordenar del más reciente al más antiguo
+    eventos.reverse();
+    return eventos;
+  } catch (e) {
+    return [];
+  }
+}
+
 // Escribe los tags en las cols vNTag/moNTag del Sheet Registros para el apto dado.
 function escribirTagsEnRegistro(numForm, apto, tagsArr) {
   // tagsArr: [{placa, tag, tipo, index}]
@@ -348,6 +373,7 @@ function doGet(e) {
         placas: placas,
         llavesActuales: getLlavesActuales(apto),
         tagsActuales: getTagsActuales(apto),
+        historial: getHistorialApto(apto),
         asignaciones: asignacion,
         devolucion: devolucion,
       });

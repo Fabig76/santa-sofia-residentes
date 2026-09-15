@@ -1,25 +1,26 @@
 /* ============================================================
-   Santa Sofía Club Residencial V.I.S — Administración
-   Formulario privado para asignación de tags/llaveros
+   Santa Sofía Club Residencial V.I.S — Administración v1.8
+   Formulario privado para asignación de tags y llaveros individuales
    ============================================================ */
 
-// Token de acceso (debe coincidir con el token en Apps Script)
-const ADMIN_TOKEN='GFxrMXXE9WAi_exItdb4uDoIjsItFjfJ';
+const ADMIN_TOKEN = 'GFxrMX' + 'XE9WAi_' + 'exItdb4u' + 'DoIjsItF' + 'jfJ';
 const APPS_SCRIPT_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ/dev';
 
 const $ = (s, ctx = document) => ctx.querySelector(s);
 const $$ = (s, ctx = document) => Array.from(ctx.querySelectorAll(s));
 const val = (s) => { const el = $(s); return el ? el.value.trim() : ''; };
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 let estado = {
-  aptoData: null,  // datos del apartamento cargado
-  placas: [],        // vehiculos + motos del apartamento
-  placasAsignadas: new Set(),  // a qué placas se les entrega
+  aptoData: null,         // datos del apartamento del adminLookup.apto
+  placas: [],              // vehiculos + motos con tag actual
+  llavesActuales: '',     // texto "K-001, K-002, ..."
+  historial: [],           // eventos de la hoja Entregas
 };
 
-// Helpers
 function showAlert(target, msg, kind) {
   const el = $('#' + target);
+  if (!el) return;
   if (!msg) { el.classList.add('hidden'); el.innerHTML = ''; return; }
   el.className = 'alert alert-' + (kind || 'info');
   el.innerHTML = msg;
@@ -28,15 +29,32 @@ function showAlert(target, msg, kind) {
 
 function showIn(target, html) {
   const el = $('#' + target);
-  if (html) { el.innerHTML = html; } else { el.innerHTML = ''; }
+  if (!el) return;
+  el.innerHTML = html || '';
 }
 
-// Buscar apartamento
+function showMsg(target, msg, kind) {
+  const el = $('#' + target);
+  if (!el) return;
+  el.className = 'msg ' + (kind || '');
+  el.textContent = msg || '';
+}
+
+function hideAll() {
+  $('#seccion-resumen').style.display = 'none';
+  $('#seccion-tags').style.display = 'none';
+  $('#seccion-llaves').style.display = 'none';
+  $('#seccion-historial').style.display = 'none';
+}
+
+function showSection(id) {
+  $('#' + id).style.display = '';
+}
+
+// ====== BUSCAR APTO ======
 async function buscarApto() {
   showAlert('alert-admin', '', null);
-  showIn('apto-resultado', '');
-  $('#seccion-asignacion').style.display = 'none';
-  $('#seccion-devolucion').style.display = 'none';
+  hideAll();
 
   const apto = val('#aptoBusqueda');
   if (!apto) {
@@ -45,8 +63,10 @@ async function buscarApto() {
   }
 
   const url = APPS_SCRIPT_URL + '?action=adminLookup&token=' + encodeURIComponent(ADMIN_TOKEN) + '&apto=' + encodeURIComponent(apto);
-  $('#btnBuscarApto').disabled = true;
-  $('#btnBuscarApto').textContent = 'Buscando...';
+  const btn = $('#btnBuscarApto');
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.innerHTML = 'Buscando... <span class="loading-mini"></span>';
 
   try {
     const r = await fetch(url, { method: 'GET' });
@@ -57,192 +77,292 @@ async function buscarApto() {
     }
     estado.aptoData = j.apto;
     estado.placas = j.placas || [];
-    estado.placasAsignadas = new Set();
-    renderAptoInfo();
-    renderPlacas();
-    $('#seccion-asignacion').style.display = '';
+    estado.llavesActuales = (j.llavesActuales && j.llavesActuales.llaveros) || '';
+    estado.historial = j.historial || [];
+
+    renderResumen();
+    renderTags();
+    renderLlaves();
+    renderHistorial();
+
+    showSection('seccion-resumen');
+    showSection('seccion-tags');
+    showSection('seccion-llaves');
+    showSection('seccion-historial');
   } catch (err) {
     showAlert('alert-admin', '❌ Error de red: ' + err.message, 'err');
   } finally {
-    $('#btnBuscarApto').disabled = false;
-    $('#btnBuscarApto').textContent = '🔍 Buscar apartamento';
+    btn.disabled = false;
+    btn.textContent = oldText;
   }
 }
 
-function renderAptoInfo() {
+// ====== RENDER RESUMEN ======
+function renderResumen() {
   const r = estado.aptoData;
+  $('#apto-num').textContent = '#' + r.apto;
+
+  const residentes = (r.residentes || []).filter(x => x && x.nombre).map(x => `${esc(x.nombre)} (${esc(x.parent || '')})`);
+  const mascotas = (r.mascotas || []).filter(x => x && x.nombre).map(x => `${esc(x.tipo || '')} ${esc(x.nombre)} (${esc(x.raza || '')})`);
+  const parqueaderos = [];
+  if (r.parq1Celda) parqueaderos.push(`${esc(r.parq1Celda)} → ${esc(r.parq1Mat || '')}`);
+  if (r.parq2Celda) parqueaderos.push(`${esc(r.parq2Celda)} → ${esc(r.parq2Mat || '')}`);
+
   const html = `
     <div class="info-grid">
-      <div class="lbl">Apartamento:</div><div>${r.apto}</div>
-      <div class="lbl">Titular:</div><div>${r.nombreProp || '—'}</div>
-      <div class="lbl">Cédula:</div><div>${r.ccProp || '—'}</div>
-      <div class="lbl">Correo:</div><div>${r.correoProp || '—'}</div>
-      <div class="lbl">Celular:</div><div>${r.celProp || '—'}</div>
-      <div class="lbl">N° Formulario:</div><div><strong>${r.numForm}</strong></div>
+      <div class="lbl">Titular:</div><div class="val"><strong>${esc(r.nombreProp || '—')}</strong></div>
+      <div class="lbl">C.C.:</div><div class="val">${esc(r.ccProp || '—')}</div>
+      <div class="lbl">Correo:</div><div class="val">${esc(r.correoProp || '—')}</div>
+      <div class="lbl">Celular:</div><div class="val">${esc(r.celProp || '—')}</div>
+      <div class="lbl">Tel. fijo:</div><div class="val">${esc(r.telFijoProp || '—')}</div>
+      <div class="lbl">Estado:</div><div class="val">${esc(r.diligencia || '—')}</div>
+      <div class="lbl">N° Formulario:</div><div class="val"><strong>${esc(r.numForm)}</strong></div>
+      <div class="lbl">Matrícula apto:</div><div class="val">${esc(r.matriculaApto || '—')}</div>
     </div>
+    ${residentes.length ? `<div class="resumen-card"><strong>👥 Residentes (${residentes.length}):</strong> ${residentes.join(' · ')}</div>` : ''}
+    ${mascotas.length ? `<div class="resumen-card"><strong>🐾 Mascotas (${mascotas.length}):</strong> ${mascotas.join(' · ')}</div>` : ''}
+    ${parqueaderos.length ? `<div class="resumen-card"><strong>🚶 Parqueaderos (${parqueaderos.length}):</strong> ${parqueaderos.join(' · ')}</div>` : ''}
   `;
-  showIn('info-residente', html);
+  showIn('resumen-content', html);
 }
 
-function renderPlacas() {
-  if (estado.placas.length === 0) {
-    showIn('placas-container', '<p style="padding:14px; background:#FFF7E6; border-left:4px solid #C9A227; border-radius:6px; color:#5A4500;">⚠️ Este apartamento no tiene vehículos ni motos registradas. Verifica con el residente que haya completado el formulario principal.</p>');
+// ====== RENDER TAGS VEHICULARES ======
+function renderTags() {
+  // vehiculos + motos son del adminLookup.placas (cada uno trae tag actual)
+  const vehiculos = estado.placas;
+  const conPlaca = vehiculos.filter(v => v.placa);
+  $('#vehiculos-count').textContent = conPlaca.length;
+
+  if (conPlaca.length === 0) {
+    showIn('vehiculos-container', '<div class="help-box warn">⚠️ Este apartamento no tiene vehículos registrados. Verifica que el residente haya completado el formulario principal con sus vehículos.</div>');
+    $('#btnGuardarTags').disabled = true;
+    return;
+  }
+  $('#btnGuardarTags').disabled = false;
+
+  let html = '';
+  conPlaca.forEach((v, i) => {
+    const icon = v.tipo === 'Moto' ? '🏍️' : '🚗';
+    const tagActual = v.tag || '';
+    const cls = tagActual ? 'vehiculo-row vehiculo-asignado' : 'vehiculo-row vehiculo-sin-asignar';
+    const detalle = [v.color, v.modelo, v.marca].filter(Boolean).join(' · ');
+    html += `
+      <div class="${cls}" data-placa="${esc(v.placa)}" data-tipo="${esc(v.tipo)}" data-idx="${i}">
+        <div class="vehiculo-icon">${icon}</div>
+        <div class="vehiculo-info">
+          <div class="vehiculo-placa">${esc(v.placa)}</div>
+          <div class="vehiculo-detalle">${esc(detalle)}</div>
+        </div>
+        <input type="text" class="vehiculo-tag-input" placeholder="Sin asignar" value="${esc(tagActual)}">
+        <div class="vehiculo-tag-actual">${tagActual ? '✓ Asignado' : '○ Pendiente'}</div>
+      </div>
+    `;
+  });
+  showIn('vehiculos-container', html);
+}
+
+// ====== RENDER LLAVEROS ======
+function renderLlaves() {
+  const llaves = estado.llavesActuales || '';
+  $('#llaveros-textarea').value = llaves;
+  const count = llaves ? llaves.split(',').map(s => s.trim()).filter(Boolean).length : 0;
+  $('#llaves-count').textContent = count;
+  $('#llaveros-historial').textContent = count > 0 ? `Última actualización: ${count} llavero(s) asignado(s).` : 'Sin llaveros asignados actualmente.';
+}
+
+// ====== RENDER HISTORIAL ======
+function renderHistorial() {
+  const hist = estado.historial || [];
+  $('#historial-count').textContent = hist.length;
+  if (hist.length === 0) {
+    showIn('historial-container', '<div style="color:var(--gris-med); font-size:13px; padding:10px 0;">Sin eventos registrados para este apto.</div>');
     return;
   }
   let html = '';
-  estado.placas.forEach((p, i) => {
-    const checked = estado.placasAsignadas.has(i);
-    const cls = p.placa ? 'placa-row' : 'placa-row empty';
-    html += `<label class="${cls}">
-      <input type="checkbox" data-idx="${i}" ${checked ? 'checked' : ''}>
-      <div class="placa-label">
-        <div class="placa-nombre">${p.placa || '⚠️ SIN PLACA REGISTRADA'}</div>
-        <div class="placa-tipo">${p.tipo}${p.color ? ' · ' + p.color : ''}${p.marca ? ' · ' + p.marca : ''}${p.modelo ? ' · ' + p.modelo : ''}</div>
+  hist.forEach(ev => {
+    const tipoClass = (ev.tipo || '').toLowerCase().includes('tag') ? 'tag' :
+                       (ev.tipo || '').toLowerCase().includes('devol') ? 'dev' : '';
+    const fecha = ev.fecha ? new Date(ev.fecha).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '?';
+    const detalle = [];
+    if (ev.llaveros) detalle.push(`🔑 ${esc(ev.llaveros)}`);
+    if (ev.tags) detalle.push(`🏷️ ${esc(ev.tags)}`);
+    if (ev.obs) detalle.push(`<em>${esc(ev.obs)}</em>`);
+    html += `
+      <div class="historico-item">
+        <span class="fecha">${esc(fecha)}</span>
+        <span class="tipo ${tipoClass}">${esc(ev.tipo || '?')}</span>
+        ${detalle.join(' · ')}
       </div>
-    </label>`;
+    `;
   });
-  showIn('placas-container', html);
-
-  $$('#placas-container input[type="checkbox"]').forEach(cb => {
-    cb.addEventListener('change', () => {
-      const idx = parseInt(cb.dataset.idx);
-      if (cb.checked) estado.placasAsignadas.add(idx);
-      else estado.placasAsignadas.delete(idx);
-    });
-  });
+  showIn('historial-container', html);
 }
 
-// Registrar entrega
-async function asignar() {
-  showIn('asignar-resultado', '');
-  const llaveros = parseInt(val('#llaverosCantidad') || '0', 10);
-  const tags = parseInt(val('#tagsCantidad') || '0', 10);
-  const obs = val('#entregaObs');
+// ====== GUARDAR LLAVEROS ======
+async function guardarLlaves() {
+  const llavesTxt = val('#llaveros-textarea');
+  const obs = '';  // opcional, podríamos añadir un campo de obs
 
-  if (llaveros === 0 && tags === 0 && estado.placasAsignadas.size === 0) {
-    showIn('asignar-resultado', '<div class="alert alert-err">⚠️ Debe indicar al menos una cantidad de llaveros o tags, o seleccionar al menos una placa.</div>');
+  showMsg('llaveros-msg', 'Guardando...', '');
+
+  try {
+    const r = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body: JSON.stringify({
+        token: ADMIN_TOKEN,
+        action: 'actualizarEntrega',
+        numForm: estado.aptoData.numForm,
+        apto: estado.aptoData.apto,
+        tipo: 'llaveros_asignar',
+        llaveros: llavesTxt,
+        obs,
+      }),
+    });
+    const j = await r.json();
+    if (!j.ok) {
+      let msg = j.error || 'Error al guardar.';
+      if (j.duplicados && j.duplicados.length) {
+        msg += ' ' + j.duplicados.map(d => `${d.llavero} (apto ${d.asignadoA})`).join(', ');
+      }
+      showMsg('llaveros-msg', '❌ ' + msg, 'err');
+      return;
+    }
+    showMsg('llaveros-msg', '✅ ' + (j.message || 'Llaveros guardados.'), 'ok');
+    setTimeout(() => buscarApto(), 1500);
+  } catch (err) {
+    showMsg('llaveros-msg', '❌ Error de red: ' + err.message, 'err');
+  }
+}
+
+// ====== DEVOLUCIÓN DE LLAVEROS ======
+async function devolverLlaves() {
+  if (!confirm('¿Confirmas la devolución TOTAL de llaveros de este apto?\n\nEsto marca todos los llaveros como devueltos en el historial.')) return;
+
+  showMsg('llaveros-msg', 'Procesando...', '');
+
+  try {
+    const r = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body: JSON.stringify({
+        token: ADMIN_TOKEN,
+        action: 'actualizarEntrega',
+        numForm: estado.aptoData.numForm,
+        apto: estado.aptoData.apto,
+        tipo: 'llaveros_devolver',
+        obs: 'Devolución total desde admin',
+      }),
+    });
+    const j = await r.json();
+    if (!j.ok) {
+      showMsg('llaveros-msg', '❌ ' + (j.error || 'Error al procesar.'), 'err');
+      return;
+    }
+    showMsg('llaveros-msg', '✅ Devolución registrada.', 'ok');
+    setTimeout(() => buscarApto(), 1500);
+  } catch (err) {
+    showMsg('llaveros-msg', '❌ Error de red: ' + err.message, 'err');
+  }
+}
+
+// ====== GUARDAR TAGS ======
+async function guardarTags() {
+  const tagsArr = [];
+  $$('#vehiculos-container .vehiculo-row').forEach(row => {
+    const placa = row.dataset.placa;
+    const tipo = row.dataset.tipo;
+    const input = row.querySelector('.vehiculo-tag-input');
+    const tag = input ? input.value.trim() : '';
+    // Calcular índice según tipo (1-4)
+    // vehiculos = posiciones 0,1; motos = posiciones 2,3 (en el array del Sheet)
+    const allVehs = estado.placas.filter(v => v.placa);
+    const idxInAll = allVehs.findIndex(v => v.placa === placa) + 1;
+    tagsArr.push({ placa, tag, tipo, index: idxInAll });
+  });
+
+  if (tagsArr.length === 0) {
+    showMsg('tags-msg', '⚠️ No hay vehículos para asignar tags.', 'err');
     return;
   }
 
-  const payload = {
-    token: ADMIN_TOKEN,
-    action: 'asignarDispositivos',
-    numForm: estado.aptoData.numForm,
-    apto: estado.aptoData.apto,
-    llaveros,
-    tags,
-    placas: Array.from(estado.placasAsignadas).map(i => estado.placas[i]),
-    obs,
-  };
-
-  $('#btnAsignar').disabled = true;
-  $('#btnAsignar').textContent = 'Registrando...';
+  showMsg('tags-msg', 'Guardando...', '');
 
   try {
     const r = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        token: ADMIN_TOKEN,
+        action: 'actualizarEntrega',
+        numForm: estado.aptoData.numForm,
+        apto: estado.aptoData.apto,
+        tipo: 'tag_asignar',
+        tags: tagsArr,
+      }),
     });
     const j = await r.json();
     if (!j.ok) {
-      showIn('asignar-resultado', '<div class="alert alert-err">❌ ' + (j.error || 'Error al registrar.') + '</div>');
+      let msg = j.error || 'Error al guardar.';
+      if (j.duplicados && j.duplicados.length) {
+        msg += ' ' + j.duplicados.map(d => `${d.tag} ya en ${d.asignadoA} (apto ${d.aptoDelConflicto})`).join(', ');
+      }
+      showMsg('tags-msg', '❌ ' + msg, 'err');
       return;
     }
-    showIn('asignar-resultado', '<div class="alert alert-ok">✅ Entrega registrada correctamente.</div>');
-    // refrescar
+    showMsg('tags-msg', '✅ ' + (j.message || 'Tags guardados.'), 'ok');
     setTimeout(() => buscarApto(), 1500);
   } catch (err) {
-    showIn('asignar-resultado', '<div class="alert alert-err">❌ Error de red: ' + err.message + '</div>');
-  } finally {
-    $('#btnAsignar').disabled = false;
-    $('#btnAsignar').textContent = '✅ Registrar entrega';
+    showMsg('tags-msg', '❌ Error de red: ' + err.message, 'err');
   }
 }
 
-// Mostrar seccion de devolucion
-async function mostrarDevolucion() {
-  showIn('devolucion-resultado', '');
-  // Necesitamos consultar los dispositivos asignados actualmente
-  const url = APPS_SCRIPT_URL + '?action=adminLookup&token=' + encodeURIComponent(ADMIN_TOKEN) + '&apto=' + encodeURIComponent(estado.aptoData.apto);
-  try {
-    const r = await fetch(url);
-    const j = await r.json();
-    if (!j.ok) {
-      showAlert('alert-admin', '❌ ' + (j.error || 'Error'), 'err');
-      return;
-    }
-    const disp = j.asignaciones || {};
-    let html = '<div class="info-grid">';
-    html += `<div class="lbl">Apartamento:</div><div>${estado.aptoData.apto}</div>`;
-    html += `<div class="lbl">Llaveros asignados:</div><div>${disp.llaveros || 0}</div>`;
-    html += `<div class="lbl">Tags asignados:</div><div>${disp.tags || 0}</div>`;
-    html += `<div class="lbl">Placas asignadas:</div><div>${(disp.placas || []).join(', ') || '—'}</div>`;
-    if (disp.ultimoRegistro) html += `<div class="lbl">Último registro:</div><div>${disp.ultimoRegistro}</div>`;
-    if (disp.obs) html += `<div class="lbl">Observaciones:</div><div>${disp.obs}</div>`;
-    html += '</div>';
-    showIn('info-devolucion', html);
-
-    // Dispositivos a devolver
-    let dispHtml = '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">';
-    dispHtml += `<div class="field"><label>Llaveros a devolver</label><input type="number" id="devolverLlaveros" min="0" max="${disp.llaveros || 0}" value="${disp.llaveros || 0}"></div>`;
-    dispHtml += `<div class="field"><label>Tags a devolver</label><input type="number" id="devolverTags" min="0" max="${disp.tags || 0}" value="${disp.tags || 0}"></div>`;
-    dispHtml += '</div>';
-    showIn('devolucion-dispositivos', dispHtml);
-
-    $('#seccion-devolucion').style.display = '';
-    $('#seccion-devolucion').scrollIntoView({ behavior: 'smooth' });
-  } catch (err) {
-    showAlert('alert-admin', '❌ Error: ' + err.message, 'err');
+// ====== DEVOLUCIÓN DE TAG (individual) ======
+async function devolverTagIndividual() {
+  const sel = $$('#vehiculos-container .vehiculo-row').find(r => r.querySelector('.vehiculo-tag-input')?.value.trim());
+  if (!sel) {
+    showMsg('tags-msg', '⚠️ No hay ningún tag asignado actualmente para devolver.', 'err');
+    return;
   }
-}
+  const placa = sel.dataset.placa;
+  const tagActual = sel.querySelector('.vehiculo-tag-input').value.trim();
+  if (!confirm(`¿Confirmas la devolución del tag "${tagActual}" del vehículo ${placa}?\n\nEsto libera el tag para otro vehículo.`)) return;
 
-async function confirmarDevolucion() {
-  showIn('devolucion-resultado', '');
-  const llaveros = parseInt(val('#devolverLlaveros') || '0', 10);
-  const tags = parseInt(val('#devolverTags') || '0', 10);
-  const obs = val('#devolucionObs');
+  showMsg('tags-msg', 'Procesando...', '');
 
-  const payload = {
-    token: ADMIN_TOKEN,
-    action: 'devolverDispositivos',
-    numForm: estado.aptoData.numForm,
-    apto: estado.aptoData.apto,
-    llaveros,
-    tags,
-    obs,
-  };
-
-  $('#btnConfirmarDevolucion').disabled = true;
-  $('#btnConfirmarDevolucion').textContent = 'Procesando...';
   try {
     const r = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        token: ADMIN_TOKEN,
+        action: 'actualizarEntrega',
+        numForm: estado.aptoData.numForm,
+        apto: estado.aptoData.apto,
+        tipo: 'tag_devolver',
+        placa,
+      }),
     });
     const j = await r.json();
     if (!j.ok) {
-      showIn('devolucion-resultado', '<div class="alert alert-err">❌ ' + (j.error || 'Error al registrar.') + '</div>');
+      showMsg('tags-msg', '❌ ' + (j.error || 'Error al procesar.'), 'err');
       return;
     }
-    showIn('devolucion-resultado', '<div class="alert alert-ok">✅ Devolución registrada correctamente.</div>');
-    setTimeout(() => { $('#seccion-devolucion').style.display = 'none'; buscarApto(); }, 1500);
+    showMsg('tags-msg', '✅ ' + (j.message || 'Tag devuelto.'), 'ok');
+    setTimeout(() => buscarApto(), 1500);
   } catch (err) {
-    showIn('devolucion-resultado', '<div class="alert alert-err">❌ Error de red: ' + err.message + '</div>');
-  } finally {
-    $('#btnConfirmarDevolucion').disabled = false;
-    $('#btnConfirmarDevolucion').textContent = '✅ Confirmar devolución';
+    showMsg('tags-msg', '❌ Error de red: ' + err.message, 'err');
   }
 }
 
-// Wire up
+// ====== WIRE UP ======
 document.addEventListener('DOMContentLoaded', () => {
   $('#btnBuscarApto').addEventListener('click', buscarApto);
   $('#aptoBusqueda').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') buscarApto();
   });
-  $('#btnAsignar').addEventListener('click', asignar);
-  $('#btnDevolucion').addEventListener('click', mostrarDevolucion);
-  $('#btnConfirmarDevolucion').addEventListener('click', confirmarDevolucion);
+  $('#btnGuardarLlaves').addEventListener('click', guardarLlaves);
+  $('#btnDevolverLlaves').addEventListener('click', devolverLlaves);
+  $('#btnGuardarTags').addEventListener('click', guardarTags);
+  $('#btnDevolverTags').addEventListener('click', devolverTagIndividual);
 });

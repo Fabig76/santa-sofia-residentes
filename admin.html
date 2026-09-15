@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1F5F4A">
-  <title>Administración — Entrega de Tags y Llaveros — Santa Sofía Club Residencial V.I.S</title>
+  <title>Administración — Tags y Llaveros — Santa Sofía Club Residencial V.I.S</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="assets/logo.png" type="image/png">
   <link rel="stylesheet" href="assets/styles.css">
@@ -18,9 +18,9 @@
       font-size: 14px;
     }
     .admin-banner strong { font-size: 16px; display: block; margin-bottom: 4px; }
-    .placa-row {
+    .vehiculo-row {
       display: grid;
-      grid-template-columns: 60px 1fr;
+      grid-template-columns: 32px 1fr 130px 100px;
       gap: 12px;
       align-items: center;
       padding: 10px 14px;
@@ -29,39 +29,33 @@
       border: 1px solid var(--gris-borde);
       border-radius: 6px;
     }
-    .placa-row.empty { background: #FFF7E6; border-color: #C9A227; }
-    .placa-row .placa-idx {
-      font-weight: 700;
-      color: var(--azul-osc);
-      font-size: 18px;
+    .vehiculo-row.vehiculo-asignado { background: #FFFBEB; border-color: #F59E0B; }
+    .vehiculo-row.vehiculo-sin-asignar { background: #F8FAFC; }
+    .vehiculo-row .vehiculo-icon { font-size: 18px; text-align: center; }
+    .vehiculo-row .vehiculo-info { font-size: 13px; }
+    .vehiculo-row .vehiculo-info .vehiculo-placa { font-family: monospace; font-weight: bold; color: var(--azul-osc); }
+    .vehiculo-row .vehiculo-info .vehiculo-detalle { color: var(--gris-med); font-size: 12px; }
+    .vehiculo-row input[type="text"] {
+      padding: 6px 10px;
+      border: 1px solid var(--gris-borde);
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 13px;
     }
-    .placa-row input[type="checkbox"] {
-      transform: scale(1.3);
-      cursor: pointer;
-      margin: 0;
-    }
-    .placa-row .placa-label {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .placa-row .placa-label .placa-nombre {
-      font-weight: 600;
-      color: var(--gris-tx);
-    }
-    .placa-row .placa-label .placa-tipo {
-      font-size: 12px;
+    .vehiculo-row .vehiculo-tag-actual {
+      font-size: 11px;
       color: var(--gris-med);
+      text-align: center;
     }
-    .devolucion-area {
-      padding: 14px;
-      background: var(--azul-claro);
-      border-radius: 8px;
-      margin-top: 16px;
-    }
-    .devolucion-area h4 {
-      margin-top: 0;
-      color: var(--azul-osc);
+    .textarea-llaves {
+      width: 100%;
+      min-height: 50px;
+      padding: 10px 12px;
+      border: 1px solid var(--gris-borde);
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 13px;
+      resize: vertical;
     }
     .info-grid {
       display: grid;
@@ -69,10 +63,96 @@
       gap: 8px 16px;
       font-size: 14px;
     }
-    .info-grid .lbl {
-      font-weight: 600;
-      color: var(--gris-med);
+    .info-grid .lbl { font-weight: 600; color: var(--gris-med); }
+    .info-grid .val { color: var(--gris-tx); }
+    .seccion-admin {
+      background: white;
+      border: 1px solid var(--gris-borde);
+      border-radius: 8px;
+      padding: 18px;
+      margin-bottom: 14px;
     }
+    .seccion-admin h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: var(--azul-osc);
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .seccion-admin h3 .contador {
+      background: var(--azul-osc);
+      color: white;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: normal;
+    }
+    .help-box {
+      background: #FFFBEB;
+      border-left: 4px solid #F59E0B;
+      padding: 10px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #5A4500;
+      margin-bottom: 12px;
+    }
+    .help-box.info { background: #EFF6FF; border-left-color: #3B82F6; color: #1E40AF; }
+    .help-box.warn { background: #FEF2F2; border-left-color: #DC2626; color: #7F1D1D; }
+    .resumen-card {
+      background: #F0F9F4;
+      border: 1px solid #BBF7D0;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .resumen-card strong { color: var(--azul-osc); }
+    .btn-area {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .btn-area .msg {
+      flex: 1;
+      font-size: 13px;
+    }
+    .btn-area .msg.ok { color: #15803D; }
+    .btn-area .msg.err { color: #B91C1C; }
+    .historico-item {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--gris-borde);
+      font-size: 12px;
+      color: var(--gris-tx);
+    }
+    .historico-item:last-child { border-bottom: none; }
+    .historico-item .fecha { color: var(--gris-med); font-family: monospace; }
+    .historico-item .tipo {
+      display: inline-block;
+      background: var(--azul-osc);
+      color: white;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-size: 10px;
+      margin: 0 6px;
+    }
+    .historico-item .tipo.tag { background: #7C3AED; }
+    .historico-item .tipo.dev { background: #DC2626; }
+    .loading-mini {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--gris-borde);
+      border-top-color: var(--azul-osc);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -93,88 +173,66 @@
   <div class="card">
     <div class="admin-banner">
       <strong>🔒 Acceso restringido</strong>
-      Esta página es solo para personal administrativo y de vigilancia. No compartir el enlace.
+      Esta página es solo para personal administrativo. No compartir el enlace.
     </div>
 
     <div id="alert-admin" class="alert hidden" role="alert"></div>
 
-    <!-- ====== PASO 1: BUSCAR POR APTO ====== -->
-    <div class="section" style="padding:18px;">
-      <div class="section-head" style="background:transparent;">
-        <span style="color:var(--azul-osc); font-weight:700;">Paso 1 — Buscar apartamento</span>
-      </div>
-      <div class="section-body" style="padding-top:14px;">
-        <div class="row row-2">
-          <div class="field">
-            <label>N° de apartamento <span class="req">*</span></label>
-            <input type="text" id="aptoBusqueda" placeholder="Ej: 311" autocomplete="off">
-          </div>
-          <div class="field" style="display:flex; align-items:end;">
-            <button type="button" class="btn btn-primary" id="btnBuscarApto">🔍 Buscar apartamento</button>
-          </div>
+    <!-- ====== BUSCAR APTO ====== -->
+    <div class="seccion-admin">
+      <h3>🔍 Buscar apartamento</h3>
+      <div style="display:flex; gap:10px; align-items:end;">
+        <div class="field" style="flex:1; margin:0;">
+          <label>N° de apartamento <span class="req">*</span></label>
+          <input type="text" id="aptoBusqueda" placeholder="Ej: 311" autocomplete="off">
         </div>
-        <div id="apto-resultado"></div>
+        <button type="button" class="btn btn-primary" id="btnBuscarApto">🔍 Buscar</button>
       </div>
     </div>
 
-    <!-- ====== PASO 2: ASIGNAR TAGS / LLAVEROS ====== -->
-    <div id="seccion-asignacion" class="section" style="padding:18px; display:none;">
-      <div class="section-head" style="background:transparent;">
-        <span style="color:var(--azul-osc); font-weight:700;">Paso 2 — Asignar dispositivos</span>
+    <!-- ====== RESUMEN DEL APTO ====== -->
+    <div id="seccion-resumen" class="seccion-admin" style="display:none;">
+      <h3>📋 Resumen del apto <span class="contador" id="apto-num">?</span></h3>
+      <div id="resumen-content"></div>
+    </div>
+
+    <!-- ====== TAGS VEHICULARES ====== -->
+    <div id="seccion-tags" class="seccion-admin" style="display:none;">
+      <h3>🏷️ Tags vehiculares <span class="contador" id="vehiculos-count">0</span></h3>
+      <div class="help-box info">
+        ℹ️ Cada vehículo tiene su propio N° Tag. Los tags no son reutilizables: cuando un vehículo se va, el tag se marca como devuelto y no se reasigna.
       </div>
-      <div class="section-body" style="padding-top:14px;">
-
-        <div id="info-residente" class="info-grid"></div>
-
-        <h4 style="margin-top:18px; color:var(--azul-osc);">Placas registradas en este apartamento</h4>
-        <p style="font-size:13px; color:var(--gris-med); margin:4px 0 10px 0;">
-          Marque las placas a las que se les entrega llavero o tag. Si una unidad (vehículo o moto) no tiene placa aún, déjela sin marcar.
-        </p>
-        <div id="placas-container"></div>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-top:18px;">
-          <div class="field">
-            <label>Cantidad de llaveros físicos a entregar</label>
-            <input type="number" id="llaverosCantidad" min="0" max="10" value="0">
-          </div>
-          <div class="field">
-            <label>Cantidad de tags de vehículo a entregar</label>
-            <input type="number" id="tagsCantidad" min="0" max="10" value="0">
-          </div>
-        </div>
-
-        <div class="field" style="margin-top:14px;">
-          <label>Observaciones de la entrega</label>
-          <textarea id="entregaObs" rows="2" placeholder="Ej: se entregan 2 llaveros y 1 tag para vehículo"></textarea>
-        </div>
-
-        <div style="margin-top:18px; display:flex; gap:10px;">
-          <button type="button" class="btn btn-primary" id="btnAsignar">✅ Registrar entrega</button>
-          <button type="button" class="btn btn-secondary" id="btnDevolucion">↩ Marcar devolución</button>
-        </div>
-
-        <div id="asignar-resultado"></div>
+      <div id="vehiculos-container"></div>
+      <div class="btn-area">
+        <div class="msg" id="tags-msg"></div>
+        <button type="button" class="btn btn-secondary" id="btnDevolverTags">↩ Marcar devolución de tag</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarTags">💾 Guardar tags</button>
       </div>
     </div>
 
-    <!-- ====== PASO 3: DEVOLUCION ====== -->
-    <div id="seccion-devolucion" class="section" style="padding:18px; display:none;">
-      <div class="section-head" style="background:transparent;">
-        <span style="color:var(--azul-osc); font-weight:700;">Paso 3 — Devolución de dispositivos</span>
+    <!-- ====== LLAVEROS PEATONALES ====== -->
+    <div id="seccion-llaves" class="seccion-admin" style="display:none;">
+      <h3>🔑 Llaveros peatonales <span class="contador" id="llaves-count">0</span></h3>
+      <div class="help-box info">
+        ℹ️ Los llaveros son genéricos. Cada K-NNN puede asignarse a cualquier apto, pero no puede estar duplicado simultáneamente. Separa los números con coma.
       </div>
-      <div class="section-body" style="padding-top:14px;">
-        <div class="info-grid" id="info-devolucion"></div>
-        <h4 style="margin-top:18px; color:var(--azul-osc);">Dispositivos actualmente asignados</h4>
-        <div id="devolucion-dispositivos"></div>
-        <div class="field" style="margin-top:14px;">
-          <label>Observaciones de la devolución</label>
-          <textarea id="devolucionObs" rows="2" placeholder="Ej: se devuelven 2 llaveros en buen estado, 1 tag dañado"></textarea>
-        </div>
-        <div style="margin-top:18px;">
-          <button type="button" class="btn btn-primary" id="btnConfirmarDevolucion">✅ Confirmar devolución</button>
-        </div>
-        <div id="devolucion-resultado"></div>
+      <div class="field">
+        <label>Llaveros asignados actualmente</label>
+        <textarea id="llaveros-textarea" class="textarea-llaves" placeholder="Ej: K-001, K-002, K-003"></textarea>
+        <div class="err-msg"></div>
       </div>
+      <div style="font-size:12px; color:var(--gris-med); margin-top:6px;" id="llaveros-historial"></div>
+      <div class="btn-area">
+        <div class="msg" id="llaveros-msg"></div>
+        <button type="button" class="btn btn-secondary" id="btnDevolverLlaves">↩ Devolución total</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarLlaves">💾 Guardar llaveros</button>
+      </div>
+    </div>
+
+    <!-- ====== HISTORIAL ====== -->
+    <div id="seccion-historial" class="seccion-admin" style="display:none;">
+      <h3>📜 Historial de eventos <span class="contador" id="historial-count">0</span></h3>
+      <div id="historial-container"></div>
     </div>
 
   </div>
