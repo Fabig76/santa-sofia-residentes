@@ -200,6 +200,114 @@ Cuando confirmes Fase 2 (agregar 48 cols al Sheet + pegar headers) y Fase 3 (ree
 3. **Frontend vigilantes.js solo leía `vehiculos`**, ignoraba `motos`. Bug histórico del v1.5 (el backend sí devolvía motos pero frontend no las mostraba). Fix en commit `fdbcc17`: combina `vehiculos.concat(motos)`
 4. **Tokens filtrados por literal largo**: ADMIN_TOKEN y VIGILANTES_TOKEN reconstruidos por concatenación de chunks `<16 chars` en Codigo.gs para evitar el filtro de literales 32+ chars alfanuméricos del sandbox de Hermes
 
+---
+
+## 15-Sep-2026 — v1.8 admin con llaveros y tags individuales (commits f7b5f7b + 0ccd947)
+
+### Cambio solicitado
+- **Llaveros peatonales** numerados individualmente (genéricos — un K-NNN puede asignarse a cualquier apto, sin duplicados simultáneos)
+- **Tags vehiculares** atados a cada vehículo declarado por el residente (no reusables: si el vehículo se va, el tag se libera)
+- **Auditoría completa**: cada cambio (entrega, devolución, reasignación) genera una fila nueva en hoja Entregas
+- Admin debe poder ver toda la información del apto resumida
+
+### Decisiones de diseño
+- Hoja Entregas pasa de 2 cols numéricas (Llaveros/Tags count) a texto libre:
+ • `Llaveros`: "K-001, K-002, K-003"
+ • `Tags`: "PFM367=T-001; EJP61H=T-002"
+- Endpoint `actualizarEntrega` con 5 tipos:
+ • `llaveros_asignar` — registra lista de llaveros en hoja Entregas
+ • `llaveros_devolver` — registra devolución (libera los llaveros)
+ • `tag_asignar` — escribe N° Tag en cols vNTag/moNTag del Sheet + fila en hoja Entregas
+ • `tag_reasignar` — mueve tag de vehículo viejo al nuevo (libera viejo)
+ • `tag_devolver` — limpia N° Tag de un vehículo (registra devolución)
+- `asignarDispositivos` y `devolverDispositivos` quedan como wrappers de compatibilidad
+
+### Backups antes de tocar
+- Repo: `santa-sofia-bundle-20260915-181018.bundle`
+- Sheet: backup completo en `/root/backups/santa-sofia/sheet-clean-20260915-194851/`
+
+### Archivos modificados (commits pusheados)
+
+**Commit `f7b5f7b` — feat(v1.8): backend v1.8**
+- `apps-script/Codigo.gs` (+300 líneas):
+ - `getEntregasSheet` con headers v1.8 (texto en lugar de count)
+ - `getLlavesActuales(apto)` — lee última asignación/devolución de llaveros
+ - `getTagsActuales(apto)` — lee tags del Sheet principal cols vNTag/moNTag
+ - `validarLlaverosDuplicados` — bloquea K-NNN ya en otro apto
+ - `validarTagsDuplicados` — bloquea T-NNN ya en otro vehículo
+ - `escribirTagsEnRegistro` — escribe N° Tag en cols vNTag/moNTag
+ - `adminLookup` incluye `llavesActuales` y `tagsActuales`
+ - Endpoint `actualizarEntrega` con 5 tipos
+ - Wrappers `asignarDispositivos` y `devolverDispositivos`
+
+**Commit `0ccd947` — feat(v1.8b): frontend admin rediseñado**
+- `admin.html` (+140/-185 líneas) — layout nuevo:
+ - Buscar apto
+ - Resumen del apto (titular, residentes, mascotas, parqueaderos)
+ - Tags vehiculares (cada vehículo con input N° Tag)
+ - Llaveros peatonales (textarea con lista separada por comas)
+ - Historial de eventos (lee de hoja Entregas)
+- `js/admin.js` (+550/-220 líneas) — reescrito:
+ - `buscarApto`, `renderResumen`, `renderTags`, `renderLlaves`, `renderHistorial`
+ - `guardarLlaves`, `devolverLlaves`, `guardarTags`, `devolverTagIndividual`
+ - Llama al endpoint `actualizarEntrega` con los 5 tipos
+ - `getHistorialApto(apto)` agregada al Codigo.gs
+ - `adminLookup` ahora incluye `historial` en el response
+
+### Sheet modificado
+- Hoja **Registros**: sigue en 191 cols (sin cambios en esta sesión)
+- Hoja **Entregas**: headers actualizados a v1.8 (Llaveros/Tags como texto, "Placas Asignadas con Tag" / "Placas Devueltas con Tag")
+
+### Apto 2000 — datos de prueba persistentes
+Insertado directamente en Sheet Registros fila 45 (numForm `TEST-2000`) para pruebas del sistema admin:
+- 3 vehículos: PFM367 (Megane), GHI789 (Spark), EJP61H (Hero moto)
+- 2 residentes: Juan Pérez (esposo), María López (esposa)
+- 2 mascotas: Firulais (Perro), Michi (Gato)
+- 1 parqueadero: Carro 119 → 280-215020
+- Matrícula: 280-999999 (TEST)
+
+**Estado actual de tags/llaves del apto 2000**:
+- v1Tag col 66: T-001 (Megane) ✓
+- v2Tag col 72: (vacío)
+- v3Tag col 78: T-002 (Hero moto) ✓
+- v4Tag col 84: (vacío)
+- mo2Tag col 96: (vacío)
+- 7 eventos en hoja Entregas (auditoría)
+
+### Verificación end-to-end
+- **Backend v1.8b (Versión 14)** confirmado por curl:
+ - `adminLookup` apto 2000 → devuelve historial con 7 eventos + tags actuales + llaves actuales
+ - 7 keys del response presentes (apto, placas, llavesActuales, tagsActuales, historial, asignaciones, devolucion)
+- **Frontend v1.8b** confirmado en navegador:
+ - Renderiza 5 secciones correctamente
+ - Tags del apto 2000 se muestran con los valores correctos
+ - Llaveros (K-001, K-002, K-003) se muestran en textarea
+ - Historial con 7 eventos con timestamps, tipos y observaciones
+- **Portal residentes** sigue funcionando:
+ - Form público OK
+ - Editar SS-0002/apto 262 carga datos correctamente
+- **Portal vigilantes** sigue funcionando:
+ - Apto 262 muestra 2 residentes + 2 vehículos + 1 parqueadero (privacidad preservada)
+
+### Pendiente opcional
+- Probar el flujo completo desde el navegador del usuario (POSTs desde la UI real)
+- Validar comportamiento de duplicados en producción (intentar asignar K-001 al 262 después de estar en 2000)
+- Probar reasignación de tags (Megane → Spark)
+- Limpiar datos de prueba del apto 2000 cuando ya no se necesiten
+
+---
+
+## Pendientes acumulados al cierre de la sesión (15-Sep-2026 20:00)
+
+1. **Decidir qué hacer con `apps-script/Codigo.gs`** — opciones:
+   - Mantener solo local (status quo — actual)
+   - Subir respaldo a Drive (última versión Drive: `Codigo_gs_Santa_Sofia_v1.8b-20260915-195734.gs`)
+   - Crear versión pública sin tokens (`Codigo-public.gs`)
+2. **Decidir qué hacer con `fix_adminLookup_placas.txt`** — commitear como `docs/RECETA-FIX-ADMIN-LOOKUP.md` o eliminar.
+3. **Renumerar secciones del form público** — hueco `7 → 9` por remoción de sección 8 (commit 98f3d38). 3 opciones en `references/section-8-numbering-gap.md`.
+4. **Wireframe de admin** (`wireframe-admin-2000.html`) — commitear como `docs/wireframe-admin-v1.8.html` o eliminar.
+5. **Apto 2000** — limpiar cuando ya no se necesite para pruebas.
+
 ###Pendientes identificados en esta sesión
 
 1. **Decidir qué hacer con `apps-script/Codigo.gs`** — opciones:
