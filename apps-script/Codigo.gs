@@ -81,11 +81,199 @@ function getEntregasSheet() {
   let sh = ss.getSheetByName(ENTREGAS_SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(ENTREGAS_SHEET_NAME);
-    sh.appendRow(['Fecha','Tipo','N° Formulario','N° Apto','Llaveros','Tags','Placas Asignadas','Placas Devueltas','Observaciones','Admin']);
+    // v1.8 — columnas con texto (no count). Cada fila = un evento.
+    sh.appendRow(['Fecha','Tipo','N° Formulario','N° Apto','Llaveros','Tags','Placas Asignadas con Tag','Placas Devueltas con Tag','Observaciones','Admin']);
     sh.getRange(1,1,1,10).setFontWeight('bold').setBackground('#1F5F4A').setFontColor('white');
     sh.setFrozenRows(1);
   }
   return sh;
+}
+
+// ---------------------------------------------------------------------
+// LLAVEROS Y TAGS: helpers para estado actual y validación de duplicados
+// ---------------------------------------------------------------------
+
+// Devuelve la lista de llaveros actualmente asignados al apto (última asignación/devolución de llaveros).
+function getLlavesActuales(apto) {
+  try {
+    const sh = getEntregasSheet();
+    const ent = sh.getDataRange().getValues();
+    let ultimaAsignacion = null;
+    let ultimaDevolucion = null;
+    for (let i = ent.length - 1; i >= 1; i--) {
+      if (String(ent[i][3]).trim() !== apto) continue;
+      const tipo = String(ent[i][1] || '').trim();
+      const llaverosTxt = String(ent[i][4] || '').trim();
+      if (tipo === 'Llaveros Asignar' && !ultimaAsignacion && llaverosTxt) {
+        ultimaAsignacion = { fecha: ent[i][0], llaveros: llaverosTxt, obs: String(ent[i][8]||'') };
+      } else if (tipo === 'Llaveros Devolver' && !ultimaDevolucion) {
+        ultimaDevolucion = { fecha: ent[i][0], obs: String(ent[i][8]||'') };
+      }
+      if (ultimaAsignacion && ultimaDevolucion) break;
+    }
+    // Si la última acción de llaveros fue devolución, el estado actual es vacío.
+    // Si fue asignación, el estado actual es la lista de esa asignación.
+    if (ultimaDevolucion && (!ultimaAsignacion || ultimaDevolucion.fecha > ultimaAsignacion.fecha)) {
+      return { ok: true, llaveros: '', fecha: ultimaDevolucion.fecha, obs: ultimaDevolucion.obs };
+    }
+    if (ultimaAsignacion) {
+      return { ok: true, llaveros: ultimaAsignacion.llaveros, fecha: ultimaAsignacion.fecha, obs: ultimaAsignacion.obs };
+    }
+    return { ok: true, llaveros: '', fecha: null, obs: null };
+  } catch (e) {
+    return { ok: true, llaveros: '', fecha: null, obs: null };
+  }
+}
+
+// Devuelve la lista de tags actualmente asignados al apto (mapa placa -> tag) leyendo TODAS las filas de Registros.
+function getTagsActuales(apto) {
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const shReg = ss.getSheetByName(SHEET_NAME);
+    const last = shReg.getLastRow();
+    if (last < 2) return { ok: true, tags: {} };
+    const data = shReg.getRange(2, 1, last - 1, NUM_COLS).getValues();
+    // Indices de cols vNTag: 61 + i*6 + 5 = 66, 72, 78, 84
+    // Indices de cols moNTag: 85 + i*6 + 5 = 90, 96, 102, 108
+    const result = {};
+    for (const row of data) {
+      if (String(row[3]).trim() !== apto) continue;
+      for (let i = 0; i < 4; i++) {
+        const vPlaca = String(row[61 + i*6 + 3] || '').trim(); // Placa del vehículo
+        const vTag = String(row[61 + i*6 + 5] || '').trim();
+        if (vPlaca && vTag) result[vPlaca] = vTag;
+        const mPlaca = String(row[85 + i*6 + 3] || '').trim(); // Placa de la moto
+        const mTag = String(row[85 + i*6 + 5] || '').trim();
+        if (mPlaca && mTag) result[mPlaca] = mTag;
+      }
+      break; // solo primer match
+    }
+    return { ok: true, tags: result };
+  } catch (e) {
+    return { ok: true, tags: {} };
+  }
+}
+
+// Valida que los llaveros propuestos no estén asignados a otro apto (excepto el mismo apto).
+function validarLlaverosDuplicados(apto, llaverosArr) {
+  try {
+    const sh = getEntregasSheet();
+    const ent = sh.getDataRange().getValues();
+    // Mapea cada llavero -> ultimo apto al que fue asignado/devuelto
+    const estadoLlaveros = {}; // llavero -> { apto, fecha, tipo }
+    for (let i = 1; i < ent.length; i++) {
+      const tipoApto = String(ent[i][1] || '').trim();
+      const aptoEvento = String(ent[i][3] || '').trim();
+      const llaverosTxt = String(ent[i][4] || '').trim();
+      const fecha = ent[i][0];
+      if (!llaverosTxt) continue;
+      if (tipoApto !== 'Llaveros Asignar' && tipoApto !== 'Llaveros Devolver') continue;
+      const llaves = llaverosTxt.split(',').map(s => s.trim()).filter(Boolean);
+      for (const llave of llaves) {
+        if (tipoApto === 'Llaveros Asignar') {
+          estadoLlaveros[llave] = { apto: aptoEvento, fecha, tipo: 'Asignar' };
+        } else if (tipoApto === 'Llaveros Devolver') {
+          if (estadoLlaveros[llave] && estadoLlaveros[llave].apto === aptoEvento) {
+            delete estadoLlaveros[llave]; // devolución libera el llavero
+          }
+        }
+      }
+    }
+    // Verificar que ninguno de los llaveros propuestos esté asignado a otro apto
+    const duplicados = [];
+    for (const llave of llaverosArr) {
+      const norm = String(llave || '').trim();
+      if (!norm) continue;
+      if (estadoLlaveros[norm] && estadoLlaveros[norm].apto !== apto) {
+        duplicados.push({ llavero: norm, asignadoA: estadoLlaveros[norm].apto });
+      }
+    }
+    return { ok: duplicados.length === 0, duplicados };
+  } catch (e) {
+    return { ok: true, duplicados: [], error: String(e) };
+  }
+}
+
+// Valida que los tags propuestos no estén asignados a otro vehículo (excepto el mismo vehículo).
+function validarTagsDuplicados(apto, tagsPropuestos) {
+  // tagsPropuestos: [{placa, tag, tipo: 'Vehiculo'|'Moto', index: 1-4}]
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const shReg = ss.getSheetByName(SHEET_NAME);
+    const last = shReg.getLastRow();
+    if (last < 2) return { ok: true, duplicados: [] };
+    const data = shReg.getRange(2, 1, last - 1, NUM_COLS).getValues();
+    // Mapa: tag -> { apto, placa, tipo }
+    const estadoTags = {};
+    for (const row of data) {
+      const aptoRow = String(row[3]).trim();
+      for (let i = 0; i < 4; i++) {
+        const vPlaca = String(row[61 + i*6 + 3] || '').trim();
+        const vTag = String(row[61 + i*6 + 5] || '').trim();
+        if (vPlaca && vTag) estadoTags[vTag] = { apto: aptoRow, placa: vPlaca, tipo: 'Vehiculo' };
+        const mPlaca = String(row[85 + i*6 + 3] || '').trim();
+        const mTag = String(row[85 + i*6 + 5] || '').trim();
+        if (mPlaca && mTag) estadoTags[mTag] = { apto: aptoRow, placa: mPlaca, tipo: 'Moto' };
+      }
+    }
+    // Verificar que ninguno de los tags propuestos esté en otro vehículo
+    const duplicados = [];
+    for (const t of tagsPropuestos) {
+      const tagNorm = String(t.tag || '').trim();
+      const placaNorm = String(t.placa || '').trim();
+      if (!tagNorm || !placaNorm) continue;
+      if (estadoTags[tagNorm] && estadoTags[tagNorm].placa !== placaNorm) {
+        duplicados.push({ tag: tagNorm, propuestoPara: placaNorm, asignadoA: estadoTags[tagNorm].placa, aptoDelConflicto: estadoTags[tagNorm].apto });
+      }
+    }
+    return { ok: duplicados.length === 0, duplicados };
+  } catch (e) {
+    return { ok: true, duplicados: [], error: String(e) };
+  }
+}
+
+// Escribe los tags en las cols vNTag/moNTag del Sheet Registros para el apto dado.
+function escribirTagsEnRegistro(numForm, apto, tagsArr) {
+  // tagsArr: [{placa, tag, tipo, index}]
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const shReg = ss.getSheetByName(SHEET_NAME);
+    const last = shReg.getLastRow();
+    if (last < 2) return { ok: false, error: 'No hay registros.' };
+    const data = shReg.getRange(2, 1, last - 1, NUM_COLS).getValues();
+    let targetRow = -1;
+    let rowValues = null;
+    for (let i = 0; i < data.length; i++) {
+      if (String(data[i][3]).trim() === apto) {
+        targetRow = i + 2; // 1-based + 1 (header)
+        rowValues = data[i].slice();
+        break;
+      }
+    }
+    if (targetRow < 0) return { ok: false, error: 'Apto ' + apto + ' no encontrado en Registros.' };
+    // Limpiar todos los tags actuales de veh y motos
+    for (let i = 0; i < 4; i++) {
+      rowValues[61 + i*6 + 5] = ''; // vNTag
+      rowValues[85 + i*6 + 5] = ''; // moNTag
+    }
+    // Escribir los nuevos tags
+    for (const t of tagsArr) {
+      const idx = parseInt(t.index, 10);
+      const tagNorm = String(t.tag || '').trim();
+      if (!idx || idx < 1 || idx > 4 || !tagNorm) continue;
+      if (t.tipo === 'Vehiculo') {
+        rowValues[61 + (idx-1)*6 + 5] = tagNorm;
+      } else if (t.tipo === 'Moto') {
+        rowValues[85 + (idx-1)*6 + 5] = tagNorm;
+      }
+    }
+    // Actualizar fechaEdicion (col idx 2)
+    rowValues[2] = Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd HH:mm:ss');
+    shReg.getRange(targetRow, 1, 1, NUM_COLS).setValues([rowValues]);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -158,6 +346,8 @@ function doGet(e) {
         ok: true,
         apto: obj,
         placas: placas,
+        llavesActuales: getLlavesActuales(apto),
+        tagsActuales: getTagsActuales(apto),
         asignaciones: asignacion,
         devolucion: devolucion,
       });
@@ -215,29 +405,128 @@ function doPost(e) {
 
     // Endpoints administrativos (requieren token)
     const action = String(payload.action || '').trim();
+    // Compatibilidad: asignarDispositivos → llamar actualizarEntrega con llaveros_asignar
     if (action === 'asignarDispositivos') {
       if (!checkAdminToken(payload.token)) return jsonOut({ ok: false, error: 'Token invalido.' });
       const numForm = String(payload.numForm || '').trim();
       const apto = String(payload.apto || '').trim();
       const llaveros = parseInt(payload.llaveros || 0, 10);
-      const tags = parseInt(payload.tags || 0, 10);
-      const placasArr = Array.isArray(payload.placas) ? payload.placas : [];
-      const placasTxt = placasArr.map(p => (p && p.placa) || '').filter(Boolean).join(', ');
-      const obs = String(payload.obs || '').trim();
       const sh = getEntregasSheet();
-      sh.appendRow([new Date(), 'Entrega', numForm, apto, llaveros, tags, placasTxt, '', obs, 'admin']);
-      return jsonOut({ ok: true, message: 'Entrega registrada.' });
+      const obs = String(payload.obs || '').trim();
+      // Generar llaveros placeholder tipo K-001..K-00N
+      const llavesAuto = [];
+      for (let i = 1; i <= llaveros; i++) {
+        llavesAuto.push('K-' + String(i).padStart(3, '0') + '-' + apto);
+      }
+      sh.appendRow([new Date(), 'Llaveros Asignar', numForm, apto, llavesAuto.join(', '), '', '', '', obs, 'admin']);
+      return jsonOut({ ok: true, message: 'Entrega registrada (compatibilidad).' });
     }
+    // Compatibilidad: devolverDispositivos → llaveros_devolver
     if (action === 'devolverDispositivos') {
       if (!checkAdminToken(payload.token)) return jsonOut({ ok: false, error: 'Token invalido.' });
       const numForm = String(payload.numForm || '').trim();
       const apto = String(payload.apto || '').trim();
-      const llaveros = parseInt(payload.llaveros || 0, 10);
-      const tags = parseInt(payload.tags || 0, 10);
+      const sh = getEntregasSheet();
+      const obs = String(payload.obs || '').trim();
+      sh.appendRow([new Date(), 'Llaveros Devolver', numForm, apto, '', '', '', '', obs, 'admin']);
+      return jsonOut({ ok: true, message: 'Devolucion registrada (compatibilidad).' });
+    }
+    // v1.8: endpoint unificado actualizarEntrega con 5 tipos
+    if (action === 'actualizarEntrega') {
+      if (!checkAdminToken(payload.token)) return jsonOut({ ok: false, error: 'Token invalido.' });
+      const numForm = String(payload.numForm || '').trim();
+      const apto = String(payload.apto || '').trim();
+      const tipo = String(payload.tipo || '').trim();
       const obs = String(payload.obs || '').trim();
       const sh = getEntregasSheet();
-      sh.appendRow([new Date(), 'Devolucion', numForm, apto, llaveros, tags, '', '', obs, 'admin']);
-      return jsonOut({ ok: true, message: 'Devolucion registrada.' });
+
+      if (!apto) return jsonOut({ ok: false, error: 'Falta N° de apartamento.' });
+      if (!tipo) return jsonOut({ ok: false, error: 'Falta tipo de evento.' });
+
+      // LLAVEROS_ASIGNAR
+      if (tipo === 'llaveros_asignar') {
+        const llaverosTxt = String(payload.llaveros || '').trim();
+        if (!llaverosTxt) return jsonOut({ ok: false, error: 'Falta lista de llaveros.' });
+        const llaverosArr = llaverosTxt.split(',').map(s => s.trim()).filter(Boolean);
+        const valid = validarLlaverosDuplicados(apto, llaverosArr);
+        if (!valid.ok) {
+          return jsonOut({ ok: false, error: 'Llaveros ya asignados a otros apartamentos:', duplicados: valid.duplicados });
+        }
+        sh.appendRow([new Date(), 'Llaveros Asignar', numForm, apto, llaverosTxt, '', '', '', obs, 'admin']);
+        return jsonOut({ ok: true, message: 'Llaveros asignados: ' + llaverosArr.length + ' items.' });
+      }
+
+      // LLAVEROS_DEVOLVER
+      if (tipo === 'llaveros_devolver') {
+        sh.appendRow([new Date(), 'Llaveros Devolver', numForm, apto, '', '', '', '', obs, 'admin']);
+        return jsonOut({ ok: true, message: 'Devolucion de llaveros registrada.' });
+      }
+
+      // TAG_ASIGNAR (escribe los N° Tag en cols vNTag/moNTag del Sheet Registros + fila en Entregas)
+      if (tipo === 'tag_asignar') {
+        const tagsArr = Array.isArray(payload.tags) ? payload.tags : [];
+        if (tagsArr.length === 0) return jsonOut({ ok: false, error: 'Falta lista de tags.' });
+        const valid = validarTagsDuplicados(apto, tagsArr);
+        if (!valid.ok) {
+          return jsonOut({ ok: false, error: 'Tags ya asignados a otros vehiculos:', duplicados: valid.duplicados });
+        }
+        const wresult = escribirTagsEnRegistro(numForm, apto, tagsArr);
+        if (!wresult.ok) return jsonOut(wresult);
+        // Construir texto para hoja Entregas: "PFM367=T-001; EJP61H=T-002"
+        const tagsTxt = tagsArr.filter(t => String(t.tag||'').trim()).map(t => t.placa + '=' + t.tag).join('; ');
+        sh.appendRow([new Date(), 'Tag Asignar', numForm, apto, '', tagsTxt, tagsTxt, '', obs, 'admin']);
+        return jsonOut({ ok: true, message: 'Tags asignados: ' + tagsArr.length + ' items.' });
+      }
+
+      // TAG_REASIGNAR (mueve un tag de un vehículo a otro — libera viejo, asigna nuevo)
+      if (tipo === 'tag_reasignar') {
+        const placaOrigen = String(payload.placaOrigen || '').trim();
+        const placaDestino = String(payload.placaDestino || '').trim();
+        const tagNuevo = String(payload.tagNuevo || '').trim();
+        if (!placaOrigen || !placaDestino || !tagNuevo) {
+          return jsonOut({ ok: false, error: 'Faltan placaOrigen, placaDestino o tagNuevo.' });
+        }
+        // Validar: tagNuevo no debe estar en otro vehículo
+        const valid = validarTagsDuplicados(apto, [{placa: placaDestino, tag: tagNuevo, tipo: 'Vehiculo', index: 1}]);
+        if (!valid.ok) {
+          return jsonOut({ ok: false, error: 'Tag ya asignado a otro vehiculo:', duplicados: valid.duplicados });
+        }
+        // Leer tags actuales del apto
+        const current = getTagsActuales(apto);
+        const nuevos = [];
+        for (const [placa, tag] of Object.entries(current.tags || {})) {
+          if (placa === placaOrigen) {
+            // Esta es la placa vieja, NO incluir (tag se libera)
+          } else if (placa === placaDestino) {
+            nuevos.push({ placa, tag: tagNuevo, tipo: 'Vehiculo', index: 1 });
+          } else {
+            nuevos.push({ placa, tag, tipo: 'Vehiculo', index: 1 });
+          }
+        }
+        nuevos.push({ placa: placaDestino, tag: tagNuevo, tipo: 'Vehiculo', index: 1 });
+        const wresult = escribirTagsEnRegistro(numForm, apto, nuevos);
+        if (!wresult.ok) return jsonOut(wresult);
+        const tagsTxt = nuevos.filter(t => t.tag).map(t => t.placa + '=' + t.tag).join('; ');
+        sh.appendRow([new Date(), 'Tag Reasignar', numForm, apto, '', tagsTxt, placaOrigen + '→' + placaDestino + '=' + tagNuevo, '', obs, 'admin']);
+        return jsonOut({ ok: true, message: 'Tag reasignado: ' + placaOrigen + ' → ' + placaDestino + ' = ' + tagNuevo });
+      }
+
+      // TAG_DEVOLVER (limpia la col vNTag/moNTag del vehículo y registra)
+      if (tipo === 'tag_devolver') {
+        const placa = String(payload.placa || '').trim();
+        if (!placa) return jsonOut({ ok: false, error: 'Falta placa del vehiculo.' });
+        const current = getTagsActuales(apto);
+        const nuevos = [];
+        for (const [pl, tag] of Object.entries(current.tags || {})) {
+          if (pl !== placa) nuevos.push({ placa: pl, tag, tipo: 'Vehiculo', index: 1 });
+        }
+        const wresult = escribirTagsEnRegistro(numForm, apto, nuevos);
+        if (!wresult.ok) return jsonOut(wresult);
+        sh.appendRow([new Date(), 'Tag Devolver', numForm, apto, '', '', '', placa + '=' + (current.tags[placa]||''), obs, 'admin']);
+        return jsonOut({ ok: true, message: 'Tag devuelto para ' + placa });
+      }
+
+      return jsonOut({ ok: false, error: 'Tipo de evento no reconocido: ' + tipo });
     }
 
     const result = submitRecord(payload);
