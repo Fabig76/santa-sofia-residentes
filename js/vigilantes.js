@@ -74,6 +74,8 @@ function renderResultado(data) {
   const residentes = data.residentes || [];
   const menores = data.menores || [];
   const vehiculos = data.vehiculos || [];
+  const motos = data.motos || [];
+  const todosVehiculos = vehiculos.concat(motos);
   const parqueaderos = data.parqueaderos || [];
   const mascotas = data.mascotas || [];
 
@@ -82,7 +84,7 @@ function renderResultado(data) {
       <div class="num">Apartamento ${escapeHtml(apto)}</div>
       <div style="font-size:13px; color:var(--gris-med); margin-top:4px;">
         ${residentes.length + menores.length} persona(s) ·
-        ${vehiculos.length} vehículo(s) ·
+        ${todosVehiculos.length} vehículo(s) ·
         ${parqueaderos.length} parqueadero(s) ·
         ${mascotas.length} mascota(s)
       </div>
@@ -125,13 +127,13 @@ function renderResultado(data) {
     </div>
 
     <div class="seccion-resultado">
-      <h3>🚗 Vehículos y motos<span class="contador">${vehiculos.length}</span></h3>
+      <h3>🚗 Vehículos y motos<span class="contador">${todosVehiculos.length}</span></h3>
   `;
 
-  if (vehiculos.length === 0) {
+  if (todosVehiculos.length === 0) {
     html += emptyState('No hay vehículos registrados en este apartamento.');
   } else {
-    html += vehiculos.map(v => {
+    html += todosVehiculos.map(v => {
       const detalle = [v.color, v.modelo, v.placa].filter(Boolean).join(' · ');
       const tipoLabel = v.tipo === 'Moto' ? '🏍️ Moto' : '🚗 Vehículo';
       return `
