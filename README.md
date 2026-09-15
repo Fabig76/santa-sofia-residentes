@@ -8,11 +8,22 @@ Arquitectura:
 - Base principal en Google Sheets.
 - Lookup de matrículas desde Google Sheets nativo de Santa Sofía.
 
+## Estado actual (15-Sep-2026)
+
+| Componente | URL | Estado |
+|---|---|---|
+| Form público residentes | https://fabig76.github.io/santa-sofia-residentes/ | ✅ Activo |
+| Panel admin | https://fabig76.github.io/santa-sofia-residentes/admin.html | ✅ Activo |
+| Portal vigilantes | https://fabig76.github.io/santa-sofia-residentes/vigilantes.html | ✅ Activo |
+| Apps Script Web App | `…/AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ/dev` | ✅ Activo |
+
+**Deploy v1.6** (15-Sep-2026): endpoints admin (adminLookup, asignarDispositivos, devolverDispositivos) y vigilantes (vigilantesLookup) funcionales. URL migrada a sufijo `/dev` por deprecación de `/exec` por Google. Ver `docs/SESIONES.md` sección "15-Sep-2026 — Migración de `/exec` a `/dev`".
+
 ## Datos del proyecto
 
 Fuente oficial: RUT Santa Sofía subido a Drive.
 - Archivo RUT oficial: https://drive.google.com/file/d/1cyS7kGSVn2LRUzFuAPIDD78Fk4o7A-PJ/view?usp=drive_link
-- ID: 1cyS7kGSVn2LRUzFuAPIDD78Fk4o7A-PJ
+- ID: `1cyS7kGSVn2LRUzFuAPIDD78Fk4o7A-PJ`
 
 - Razón social: Santa Sofía Club Residencial V.I.S
 - NIT: 901142051-3
@@ -24,6 +35,7 @@ Fuente oficial: RUT Santa Sofía subido a Drive.
 
 - Sheet principal de respuestas: https://docs.google.com/spreadsheets/d/1xL359rDrhb3_qbhY-tm2MfPXKBqbAehC3zWzsMv1PUo/edit
 - Sheet nativo de matrículas lookup: https://docs.google.com/spreadsheets/d/1qEnC5BCRags2r_RHQiB0LjK6Or1rx31Gvopr22-n12w/edit
+- Hoja `Entregas` (se crea automáticamente al primer uso desde admin.html)
 
 ## Regla para matrículas no disponibles
 
@@ -36,14 +48,12 @@ Si la matrícula está vacía, pendiente, contiene `X`/`XXXX`, es ambigua o no a
 - El residente debe escribirla manualmente según escritura, certificado de tradición o documento de propiedad.
 - En el Sheet principal se marca `Requiere Revisión Matrículas = Sí`.
 
-## Pendiente para producción
+## Documentación
 
-1. Desplegar `apps-script/Codigo.gs` manualmente desde la cuenta `santasofia.clubresidencial@gmail.com`.
-2. Configurar Web App:
-   - Ejecutar como: Yo
-   - Quién tiene acceso: Cualquier persona
-3. Copiar la URL `/exec` generada.
-4. Pegar esa URL en `js/app.js`, constante `APPS_SCRIPT_URL`.
-5. Publicar el repo como GitHub Pages.
+- `docs/GUIA-PROYECTO-SANTA-SOFIA.md` — guía completa del proyecto (705 líneas)
+- `docs/SESIONES.md` — bitácora cronológica de fixes y eventos relevantes
+- `manual-residentes.html` — manual de uso para residentes
 
-Mientras `APPS_SCRIPT_URL` esté vacío, la página mostrará que el formulario no está conectado al servidor.
+## Nota sobre `apps-script/Codigo.gs`
+
+El archivo `apps-script/Codigo.gs` en el repo local tiene cambios sin commitear y contiene el `ADMIN_TOKEN`. NO se commitea al repo público por seguridad. Ver `docs/SESIONES.md` sección "Estado del archivo `apps-script/Codigo.gs` local" para detalle completo.
