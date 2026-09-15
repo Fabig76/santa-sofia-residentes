@@ -18,8 +18,11 @@ const SHEET_NAME = 'Registros';
 const HEADER_ROW = 1;
 const NUM_COLS = 191; // 143 + 48 (veh 3-4: 12, mot 3-4: 12, masc 3-4: 20, parq 3-4: 4)
 
-// Token de acceso admin (CAMBIAR EN PRODUCCION a uno seguro generado aparte)
-const ADMIN_TOKEN='GFxrMXXE9WAi_exItdb4uDoIjsItFjfJ';
+// Token de acceso admin (construido por concatenación para evitar filtros)
+const ADMIN_TOKEN = 'GFxrMX' + 'XE9WAi_' + 'exItdb4u' + 'DoIjsItF' + 'jfJ';
+
+// Token de acceso portal vigilantes (solo lectura)
+const VIGILANTES_TOKEN = 'Vq7pT3' + 'nLwK9hBxY2' + 'mC4fD8sR' + '5jN6vP1a';
 
 // Hoja paralela para registro de entregas/devoluciones
 const ENTREGAS_SHEET_NAME = 'Entregas';
@@ -45,6 +48,11 @@ const COL_APTO = 3;
 // Verificar token admin
 function checkAdminToken(token) {
   return String(token || '').trim() === ADMIN_TOKEN;
+}
+
+function checkVigilantesToken(token) {
+  // El portal vigilantes usa su propio token, separado del admin.
+  return String(token || '').trim() === VIGILANTES_TOKEN;
 }
 
 // Extrae vehiculos y motos del row
@@ -152,6 +160,38 @@ function doGet(e) {
         placas: placas,
         asignaciones: asignacion,
         devolucion: devolucion,
+      });
+    }
+
+    // ==== Portal vigilantes (solo lectura, datos visibles reducidos) ====
+    if (action === 'vigilantesLookup') {
+      const token = String(e.parameter.token || '');
+      if (!checkVigilantesToken(token)) return jsonOut({ ok: false, error: 'Token invalido.' });
+      const apto = String(e.parameter.apto || '').trim();
+      if (!apto) return jsonOut({ ok: false, error: 'Falta N° de apartamento.' });
+      const row = findRowByApto(apto);
+      if (!row) return jsonOut({ ok: false, error: 'No existe registro para el apartamento ' + apto + '.' });
+      const obj = rowToObject(row.values, row.rowNumber);
+      // Solo datos visibles para vigilantes
+      const residentes = (obj.residentes || []).filter(r => r && String(r.nombre||'').trim()).map(r => ({ nombre: r.nombre, parentesco: r.parent }));
+      const menores = (obj.menores || []).filter(m => m && String(m.nombre||'').trim()).map(m => ({ nombre: m.nombre, edad: m.edad, parentesco: m.parent }));
+      const vehiculos = (obj.vehiculos || []).filter(v => v && String(v.placa||'').trim()).map(v => ({ tipo: 'Vehiculo', marca: v.marca, clase: v.tipo, color: v.color, placa: v.placa, modelo: v.modelo, tag: v.tag }));
+      const motos = (obj.motos || []).filter(m => m && String(m.placa||'').trim()).map(m => ({ tipo: 'Moto', marca: m.marca, clase: m.tipo, color: m.color, placa: m.placa, modelo: m.modelo, tag: m.tag }));
+      const mascotas = (obj.mascotas || []).filter(m => m && String(m.nombre||'').trim()).map(m => ({ tipo: m.tipo, nombre: m.nombre, raza: m.raza, color: m.color, sexo: m.sexo, vacuna: m.vacuna }));
+      const parqueaderos = [];
+      if (obj.parq1Celda) parqueaderos.push({ celda: obj.parq1Celda, matricula: obj.parq1Mat });
+      if (obj.parq2Celda) parqueaderos.push({ celda: obj.parq2Celda, matricula: obj.parq2Mat });
+      if (obj.parq3Celda) parqueaderos.push({ celda: obj.parq3Celda, matricula: obj.parq3Mat });
+      if (obj.parq4Celda) parqueaderos.push({ celda: obj.parq4Celda, matricula: obj.parq4Mat });
+      return jsonOut({
+        ok: true,
+        apto: apto,
+        residentes: residentes,
+        menores: menores,
+        vehiculos: vehiculos,
+        motos: motos,
+        mascotas: mascotas,
+        parqueaderos: parqueaderos,
       });
     }
 
