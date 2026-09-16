@@ -16,7 +16,7 @@
 const SHEET_ID = '1xL359rDrhb3_qbhY-tm2MfPXKBqbAehC3zWzsMv1PUo';
 const SHEET_NAME = 'Registros';
 const HEADER_ROW = 1;
-const NUM_COLS = 191; // 143 + 48 (veh 3-4: 12, mot 3-4: 12, masc 3-4: 20, parq 3-4: 4)
+const NUM_COLS = 203; // v1.8b: 191 + 12 (sección 3 v2.0: 2 filas × 6 campos parqueadero autorizado a tercero)
 
 // Token de acceso admin (construido por concatenación para evitar filtros)
 const ADMIN_TOKEN = 'GFxrMX' + 'XE9WAi_' + 'exItdb4u' + 'DoIjsItF' + 'jfJ';
@@ -684,10 +684,43 @@ function buildRowFromPayload(d, numForm, fechaRegistroOriginal) {
   v[19]             = String(d.correoArr || '').trim().toLowerCase();
   v[20]             = String(d.celArr || '').trim();
 
-  // 3. Parqueadero autorizado a tercero
+  // 3. Parqueadero autorizado a tercero — LEGACY v[21-23] (preservado para registros viejos)
   v[21]             = String(d.parqTerNom || '').trim();
   v[22]             = String(d.parqTerApto || '').trim();
   v[23]             = String(d.parqTerCel || '').trim();
+
+  // 3. Parqueadero autorizado a tercero — v2.0: 2 filas × 6 campos (v[191-202])
+  // Validación: si la fila tiene algún campo, los obligatorios (* excepto Placa) deben estar llenos.
+  function validarFilaAut(n) {
+    const parq  = String(d[`parqTer${n}Parq`]  || '').trim();
+    const tipo  = String(d[`parqTer${n}Tipo`]  || '').trim();
+    const placa = String(d[`parqTer${n}Placa`] || '').trim();
+    const nom   = String(d[`parqTer${n}Nom`]   || '').trim();
+    const apto  = String(d[`parqTer${n}Apto`]  || '').trim();
+    const cel   = String(d[`parqTer${n}Cel`]   || '').trim();
+    const algunoLleno = !!(parq || tipo || placa || nom || apto || cel);
+    if (!algunoLleno) return; // fila vacía: no se procesa
+    if (!parq || !tipo || !nom || !apto || !cel) {
+      throw new Error(`Sección 3 — Fila ${n}: complete N° Parqueadero, Tipo, Nombre, Apto y Celular (la Placa es opcional).`);
+    }
+    if (tipo !== 'Carro' && tipo !== 'Moto') {
+      throw new Error(`Sección 3 — Fila ${n}: el Tipo debe ser "Carro" o "Moto" (recibido: "${tipo}").`);
+    }
+  }
+  validarFilaAut(1);
+  validarFilaAut(2);
+  v[191] = String(d.parqTer1Parq  || '').trim();
+  v[192] = String(d.parqTer1Tipo  || '').trim();
+  v[193] = String(d.parqTer1Placa || '').trim();
+  v[194] = String(d.parqTer1Nom   || '').trim();
+  v[195] = String(d.parqTer1Apto  || '').trim();
+  v[196] = String(d.parqTer1Cel   || '').trim();
+  v[197] = String(d.parqTer2Parq  || '').trim();
+  v[198] = String(d.parqTer2Tipo  || '').trim();
+  v[199] = String(d.parqTer2Placa || '').trim();
+  v[200] = String(d.parqTer2Nom   || '').trim();
+  v[201] = String(d.parqTer2Apto  || '').trim();
+  v[202] = String(d.parqTer2Cel   || '').trim();
 
   // 4. Inmobiliaria
   v[24]             = String(d.inmobRazon || '').trim();
@@ -1031,6 +1064,20 @@ function rowToObject(rowArr) {
     parqTerNom: String(rowArr[21] || ''),
     parqTerApto: String(rowArr[22] || ''),
     parqTerCel: String(rowArr[23] || ''),
+    // v2.0 — Sección 3: 2 filas × 6 campos (v[191-202])
+    // Si fila 1 nuevos vacíos pero legacy poblado → usar legacy en fila 1 (compat con registros viejos)
+    parqTer1Parq:  String(rowArr[191] || ''),
+    parqTer1Tipo:  String(rowArr[192] || ''),
+    parqTer1Placa: String(rowArr[193] || ''),
+    parqTer1Nom:   String(rowArr[194] || (rowArr[21] || '')),  // fallback a legacy v[21]
+    parqTer1Apto:  String(rowArr[195] || (rowArr[22] || '')),  // fallback a legacy v[22]
+    parqTer1Cel:   String(rowArr[196] || (rowArr[23] || '')),  // fallback a legacy v[23]
+    parqTer2Parq:  String(rowArr[197] || ''),
+    parqTer2Tipo:  String(rowArr[198] || ''),
+    parqTer2Placa: String(rowArr[199] || ''),
+    parqTer2Nom:   String(rowArr[200] || ''),
+    parqTer2Apto:  String(rowArr[201] || ''),
+    parqTer2Cel:   String(rowArr[202] || ''),
     inmobRazon: String(rowArr[24] || ''),
     inmobNit: String(rowArr[25] || ''),
     inmobContacto: String(rowArr[26] || ''),

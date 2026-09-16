@@ -204,9 +204,18 @@ function poblarFormulario(r) {
   setVal('#ccArr', r.ccArr);
   setVal('#correArr', r.correoArr);
   setVal('#celArr', r.celArr);
-  setVal('#parqTerNom', r.parqTerNom);
-  setVal('#parqTerApto', r.parqTerApto);
-  setVal('#parqTerCel', r.parqTerCel);
+  setVal('#parqTer1Parq', r.parqTer1Parq);
+  setVal('#parqTer1Tipo', r.parqTer1Tipo);
+  setVal('#parqTer1Placa', r.parqTer1Placa);
+  setVal('#parqTer1Nom', r.parqTer1Nom);
+  setVal('#parqTer1Apto', r.parqTer1Apto);
+  setVal('#parqTer1Cel', r.parqTer1Cel);
+  setVal('#parqTer2Parq', r.parqTer2Parq);
+  setVal('#parqTer2Tipo', r.parqTer2Tipo);
+  setVal('#parqTer2Placa', r.parqTer2Placa);
+  setVal('#parqTer2Nom', r.parqTer2Nom);
+  setVal('#parqTer2Apto', r.parqTer2Apto);
+  setVal('#parqTer2Cel', r.parqTer2Cel);
   setVal('#inmobRazon', r.inmobRazon);
   setVal('#inmobNit', r.inmobNit);
   setVal('#inmobContacto', r.inmobContacto);
@@ -415,9 +424,23 @@ function recolectar() {
     ccArr: val('#ccArr'),
     correoArr: val('#correArr'),
     celArr: val('#celArr'),
-    parqTerNom: val('#parqTerNom'),
-    parqTerApto: val('#parqTerApto'),
-    parqTerCel: val('#parqTerCel'),
+    // v2.0 — Sección 3 (2 filas × 6 campos = 12 inputs)
+    parqTer1Parq:  val('#parqTer1Parq'),
+    parqTer1Tipo:  val('#parqTer1Tipo'),
+    parqTer1Placa: val('#parqTer1Placa'),
+    parqTer1Nom:   val('#parqTer1Nom'),
+    parqTer1Apto:  val('#parqTer1Apto'),
+    parqTer1Cel:   val('#parqTer1Cel'),
+    parqTer2Parq:  val('#parqTer2Parq'),
+    parqTer2Tipo:  val('#parqTer2Tipo'),
+    parqTer2Placa: val('#parqTer2Placa'),
+    parqTer2Nom:   val('#parqTer2Nom'),
+    parqTer2Apto:  val('#parqTer2Apto'),
+    parqTer2Cel:   val('#parqTer2Cel'),
+    // v2.0 — Legacy v[21-23] (echo de fila 1 si está llena, preserva compat)
+    parqTerNom:    val('#parqTer1Nom'),
+    parqTerApto:   val('#parqTer1Apto'),
+    parqTerCel:    val('#parqTer1Cel'),
     inmobRazon: val('#inmobRazon'),
     inmobNit: val('#inmobNit'),
     inmobContacto: val('#inmobContacto'),
@@ -521,6 +544,27 @@ function validar() {
     showError('#parq2Mat', 'Escriba la matrícula del parqueadero 2 porque no está disponible en la base de la administración.');
     ok = false;
   }
+
+  // v2.0 — Sección 3 autorización a tercero (2 filas)
+  // Si la fila tiene AL MENOS un campo lleno, todos los marcados con * son obligatorios (excepto Placa que es opcional).
+  function validarFilaAutoriz(n) {
+    const parq   = val(`#parqTer${n}Parq`);
+    const tipo   = val(`#parqTer${n}Tipo`);
+    const placa  = val(`#parqTer${n}Placa`);
+    const nom    = val(`#parqTer${n}Nom`);
+    const apto   = val(`#parqTer${n}Apto`);
+    const cel    = val(`#parqTer${n}Cel`);
+    const algunoLleno = !!(parq || tipo || placa || nom || apto || cel);
+    if (!algunoLleno) return; // Fila vacía → OK, no se envía autorización
+    // Algún campo lleno → validar todos los obligatorios
+    if (!parq)  { showError(`#parqTer${n}Parq`, `Indique el N° de parqueadero que autoriza en la fila ${n}.`); ok = false; }
+    if (!tipo)  { showError(`#parqTer${n}Tipo`, `Seleccione si es Carro o Moto en la fila ${n}.`); ok = false; }
+    if (!nom)   { showError(`#parqTer${n}Nom`,  `Indique el nombre del autorizado en la fila ${n}.`); ok = false; }
+    if (!apto)  { showError(`#parqTer${n}Apto`, `Indique el apto N° del autorizado en la fila ${n}.`); ok = false; }
+    if (!cel)   { showError(`#parqTer${n}Cel`,  `Indique el celular del autorizado en la fila ${n}.`); ok = false; }
+  }
+  validarFilaAutoriz(1);
+  validarFilaAutoriz(2);
 
   requiredCheckbox('autDatos', 'Debes autorizar el tratamiento de datos para continuar.');
   required('#firmaNom', 'Firma con tu nombre completo.');

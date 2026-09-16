@@ -204,8 +204,12 @@ main {
 }
 .row.row-1 { grid-template-columns: 1fr; }
 .row.row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.row.row-6 { grid-template-columns: 1fr 1fr 1fr 1.4fr 0.8fr 1fr; }
+@media (max-width: 1024px) {
+  .row.row-6 { grid-template-columns: 1fr 1fr 1fr; }
+}
 @media (max-width: 640px) {
-  .row, .row.row-3 { grid-template-columns: 1fr; }
+  .row, .row.row-3, .row.row-6 { grid-template-columns: 1fr; }
 }
 
 .field {

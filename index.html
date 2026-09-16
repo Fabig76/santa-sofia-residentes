@@ -303,25 +303,90 @@
           </div>
         </div>
 
-        <!-- ====== 3. PARQUEADERO A TERCERO ====== -->
+        <!-- ====== 3. PARQUEADERO A TERCERO (v2.0: 2 filas × 6 campos) ====== -->
         <div class="section collapsed">
           <div class="section-head">
             <span><span class="section-num">3</span>Autorización de uso de parqueadero a tercero (si aplica)</span>
             <span class="arrow">▼</span>
           </div>
           <div class="section-body">
-            <div class="row row-3">
-              <div class="field">
-                <label>Nombre del autorizado</label>
-                <input type="text" id="parqTerNom">
+            <p style="margin-top:0; color:var(--gris-med); font-size:13px;">
+              Si algún parqueadero suyo es usado por otra persona (ej: su inquilino no tiene vehículos y usted le alquila el parqueadero),
+              complete los datos del tercero autorizado. Puede registrar hasta 2 autorizaciones (ej: una para parqueadero de carro y otra para parqueadero de moto).
+              Si no aplica, deje las filas vacías.
+            </p>
+
+            <!-- Fila 1 -->
+            <div class="autoriz-row" style="border:1px solid var(--gris-claro); border-radius:8px; padding:14px; margin-bottom:14px; background:var(--blanco);">
+              <div class="row-title" style="font-weight:600; color:var(--verde-osc); margin-bottom:10px; padding-bottom:6px; border-bottom:1px dashed var(--gris-claro);">
+                Fila 1
               </div>
-              <div class="field">
-                <label>Apto N°</label>
-                <input type="text" id="parqTerApto">
+              <div class="row row-6">
+                <div class="field">
+                  <label>N° Parqueadero que autoriza <span class="req">*</span></label>
+                  <input type="text" id="parqTer1Parq" placeholder="Ej: Carro 119 / Moto 34">
+                </div>
+                <div class="field">
+                  <label>Tipo de vehículo <span class="req">*</span></label>
+                  <select id="parqTer1Tipo">
+                    <option value="">Seleccione...</option>
+                    <option value="Carro">Carro</option>
+                    <option value="Moto">Moto</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Placa del vehículo autorizado</label>
+                  <input type="text" id="parqTer1Placa" placeholder="Opcional">
+                </div>
+                <div class="field">
+                  <label>Nombre del autorizado <span class="req">*</span></label>
+                  <input type="text" id="parqTer1Nom">
+                </div>
+                <div class="field">
+                  <label>Apto N° <span class="req">*</span></label>
+                  <input type="text" id="parqTer1Apto">
+                </div>
+                <div class="field">
+                  <label>Celular <span class="req">*</span></label>
+                  <input type="tel" id="parqTer1Cel">
+                </div>
               </div>
-              <div class="field">
-                <label>Celular</label>
-                <input type="tel" id="parqTerCel">
+            </div>
+
+            <!-- Fila 2 -->
+            <div class="autoriz-row" style="border:1px solid var(--gris-claro); border-radius:8px; padding:14px; background:var(--blanco);">
+              <div class="row-title" style="font-weight:600; color:var(--verde-osc); margin-bottom:10px; padding-bottom:6px; border-bottom:1px dashed var(--gris-claro);">
+                Fila 2 <span style="font-weight:400; color:var(--gris-med); font-size:12px;">— (opcional, para 2do parqueadero)</span>
+              </div>
+              <div class="row row-6">
+                <div class="field">
+                  <label>N° Parqueadero que autoriza <span class="req">*</span></label>
+                  <input type="text" id="parqTer2Parq" placeholder="Ej: Carro 119 / Moto 34">
+                </div>
+                <div class="field">
+                  <label>Tipo de vehículo <span class="req">*</span></label>
+                  <select id="parqTer2Tipo">
+                    <option value="">Seleccione...</option>
+                    <option value="Carro">Carro</option>
+                    <option value="Moto">Moto</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Placa del vehículo autorizado</label>
+                  <input type="text" id="parqTer2Placa" placeholder="Opcional">
+                </div>
+                <div class="field">
+                  <label>Nombre del autorizado <span class="req">*</span></label>
+                  <input type="text" id="parqTer2Nom">
+                </div>
+                <div class="field">
+                  <label>Apto N° <span class="req">*</span></label>
+                  <input type="text" id="parqTer2Apto">
+                </div>
+                <div class="field">
+                  <label>Celular <span class="req">*</span></label>
+                  <input type="tel" id="parqTer2Cel">
+                </div>
               </div>
             </div>
           </div>

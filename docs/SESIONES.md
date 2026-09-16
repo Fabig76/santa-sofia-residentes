@@ -363,3 +363,59 @@ Insertado directamente en Sheet Registros fila 45 (numForm `TEST-2000`) para pru
 ### Nota sobre `references/section-8-numbering-gap.md`
 
 El archivo `references/section-8-numbering-gap.md` mencionado en entradas anteriores de SESIONES.md **NO existe en el repo**. Las opciones que documentaba (renumerar / placeholder / aceptar) se conocían por la skill del proyecto pero nunca se commiteó el reference. Con la decisión de la FASE 4, ya no se necesita crearlo.
+
+---
+
+## 16-Sep-2026 — v1.9 Sección 3 v2.0 (2 filas × 6 campos)
+
+### Caso de uso reportado por el operador
+
+"En el formato en el punto autorización de uso de parqueadero a tercero debemos agregar el parqueadero que autoriza y si es de moto o de carro la placa del vehículo autorizado y después de completar estas casillas nuevas debemos agregar una línea adicional con los mismos items porque una persona puede tener parqueadero de moto y de carro y los dos autorizar a otras personas que los usen porque su inquilino no tiene vehículos entonces los alquila."
+
+### Síntoma
+
+La sección 3 del form público tenía solo 3 inputs (Nombre/Apto/Celular) en `index.html`. Imposible registrar 2 autorizaciones distintas ni distinguir parqueadero de carro vs moto, ni capturar la placa del vehículo autorizado.
+
+### Cambios aplicados
+
+**Frontend (`index.html` + `assets/styles.css` + `js/app.js`):**
+- Sección 3 reescrita: 2 filas fijas × 6 inputs cada una (N°Parq texto libre / Tipo select Moto| Carro / Placa autorizado opcional / Nombre / Apto / Celular).
+- Nueva clase CSS `.row.row-6` con breakpoints responsive (1024px → 3 cols, 640px → 1 col).
+- `poblarFormulario` (js/app.js) lee los 12 campos nuevos con fallback legacy.
+- `recolectar` envía los 12 nuevos + eco legacy (v[21-23] = parqTer1{Nom,Apto,Cel}).
+- `validarFilaAutoriz(n)` valida: fila vacía → OK; fila con algún campo → exige todos los * (excepto Placa).
+
+**Backend (`apps-script/Codigo.gs`):**
+- `NUM_COLS = 203` (era 191).
+- `buildRowFromPayload` escribe v[191-202] + valida que si la fila tiene algún campo lleno, los * estén llenos; valida Tipo ∈ {Carro, Moto}; lanza Error descriptivo si incompleto.
+- `rowToObject` devuelve los 12 campos nuevos con fallback legacy: si v[191-196] vacíos pero v[21-23] poblados, carga los legacy en fila 1 con N°Parq/Tipo/Placa vacíos.
+
+**Sheet Registros (191 → 203 columnas):**
+- Grid actualizado a 203 cols (batchUpdate).
+- 12 headers nuevos agregados en GJ1:GU1 (v[191-202]): `Parq Tercero 1 N° Parqueadero`, `Tipo`, `Placa`, `Nombre`, `Apto`, `Celular` × 2 filas.
+- Headers originales cols 1-191 intactos (verificado byte a byte contra backup).
+- Filas 2-53 (registros viejos) con v[191-202] vacíos.
+
+### Compatibilidad hacia atrás
+
+- Registros viejos con datos en v[21-23] (legacy): al editar, se cargan en FILA 1 con N°Parq/Tipo/Placa vacíos.
+- Registros nuevos: se guardan en v[191-202]; eco legacy automático en v[21-23] = fila 1.
+
+### Verificación end-to-end (16-Sep-2026, deployado por operador)
+
+- **Lookup TEST-2000**: JSON limpio con 12 campos nuevos + 3 legacy, todos vacíos (TEST-2000 no tiene sección 3). ✓
+- **POST creación**: registro TEST SECCION 3 V19 en apto 1999, numForm SS-0053 auto-asignado, sección 3 fila 1 llena en v[191-196] con [Carro 88, Carro, TST199, PRUEBA FILA 1, 888, 317 888 1999], fila 2 vacía, v[21-23] eco OK. ✓
+- **Borrado de prueba**: fila 55 del Sheet eliminada post-verificación, TEST-2000 intacto.
+
+### Backup pre y post
+
+- PRE-expansión: `santa-sofia-prev19-sheet-20260916-184721.xlsx` (433KB) + CSVs + bundle + tarball + Codigo.gs v1.8b.
+- PRE-M19: `santa-sofia-m19-sheet-20260916-185300.xlsx` (433KB) + CSVs + bundle + tarball + Codigo.gs v1.9 (pre-deploy).
+- POST-FINAL: `santa-sofia-v19-FINAL-sheet-20260916-190941.xlsx` (459KB) + CSVs + bundle + tarball + Codigo.gs v1.9-DEPLOYED.
+
+Carpeta Drive: https://drive.google.com/drive/folders/1JGu7x5MmEG81q427y_K-2xmPGmuaRLAq
+
+### Pendiente
+
+- [ ] Push git a origin/main (espera OK explícito del operador).
+- [ ] Verificación final por el operador en producción (frontend v2.0 visible tras push).

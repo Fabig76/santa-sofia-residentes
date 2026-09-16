@@ -1,3 +1,8 @@
 node_modules/
 .DS_Store
 .env
+# Artefactos de backup (subidos a Drive, NO al repo)
+*.bundle
+*.tar.gz
+# wireframes aprobados viven en docs/, NO en raíz
+/wireframe-*.html

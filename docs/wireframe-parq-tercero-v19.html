@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Wireframe Sección 3 v2.0 — Autorización Parqueadero a Tercero</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; margin: 0; padding: 20px; color: #1f2937; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  h1 { color: #1F5F4A; margin: 0 0 4px 0; font-size: 22px; }
+  .meta { color: #6b7280; font-size: 13px; margin-bottom: 20px; }
+  .demo-banner { background: #dbeafe; border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 20px; font-size: 13px; }
+  .changes-banner { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 16px 0; font-size: 13px; color: #5A4500; }
+  .section { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 18px; overflow: hidden; }
+  .section-head { background: #1F5F4A; color: white; padding: 12px 16px; font-weight: 600; font-size: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .section-num { background: white; color: #1F5F4A; padding: 2px 9px; border-radius: 50%; font-weight: bold; margin-right: 10px; }
+  .section-body { padding: 16px; background: #f8fafc; }
+  .autoriz-row { background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+  .autoriz-row:last-child { margin-bottom: 0; }
+  .row-title { font-weight: 600; color: #1F5F4A; font-size: 14px; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed #cbd5e1; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+  .field-row.row-6 { grid-template-columns: 1fr 1fr 1fr 1.4fr 0.8fr 1fr; }
+  .field { display: flex; flex-direction: column; }
+  .field label { font-size: 12px; color: #475569; margin-bottom: 4px; font-weight: 500; }
+  .field input, .field select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; background: white; }
+  .field input:focus, .field select:focus { outline: 2px solid #1F5F4A; border-color: #1F5F4A; }
+  .field input[disabled], .field input[readonly] { background: #f1f5f9; color: #64748b; }
+  .req { color: #dc2626; }
+  .hint { font-size: 11px; color: #64748b; margin-top: 4px; font-style: italic; }
+  .pill { display: inline-block; background: #1F5F4A; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; }
+  .empty { color: #94a3b8; font-style: italic; }
+  .legend { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px 16px; margin-top: 18px; font-size: 12px; color: #14532d; }
+  .legend strong { color: #166534; }
+  .legend ul { margin: 6px 0 0 0; padding-left: 20px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+  .compare-card { padding: 12px; border-radius: 8px; font-size: 12px; }
+  .compare-card.old { background: #fef2f2; border: 1px solid #fecaca; color: #7f1d1d; }
+  .compare-card.new { background: #f0fdf4; border: 1px solid #86efac; color: #14532d; }
+  .compare-card .label { font-weight: bold; margin-bottom: 6px; }
+  .compare-card ul { margin: 4px 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📐 Wireframe — Sección 3 v2.0 "Autorización parqueadero a tercero"</h1>
+  <div class="meta">Santa Sofía Club Residencial V.I.S · NIT 901142051-3 · 16-Sep-2026</div>
+
+  <div class="demo-banner">
+    <strong>👁 Preview</strong> — Renderizado standalone. La UI final en index.html usará las clases nativas (section/section-head/section-body/row/field) y heredará el CSS de assets/styles.css.
+  </div>
+
+  <div class="changes-banner">
+    <strong>🔄 Cambio vs v1.8b:</strong> Sección 3 pasa de <strong>3 inputs simples</strong> (Nombre/Apto/Celular) a <strong>2 filas de 6 inputs</strong> cada una. Caso de uso: dueño tiene parqueadero de carro + parqueadero de moto, su inquilino no tiene vehículos, entonces alquila los 2 parqueaderos a terceros distintos (inquilino del apto X usa el de carro con su placa, inquilino del apto Y usa el de moto con su placa).
+  </div>
+
+  <!-- =========== ANTES (v1.8b) =========== -->
+  <div class="section" style="opacity:0.5;">
+    <div class="section-head">
+      <span><span class="section-num">3</span>ANTES (v1.8b) — Autorización de uso de parqueadero a tercero (si aplica)</span>
+      <span style="font-size:11px;">3 inputs</span>
+    </div>
+    <div class="section-body">
+      <div class="field-row">
+        <div class="field">
+          <label>Nombre del autorizado</label>
+          <input type="text" value="" disabled placeholder="solo nombre...">
+        </div>
+        <div class="field">
+          <label>Apto N°</label>
+          <input type="text" value="" disabled>
+        </div>
+        <div class="field">
+          <label>Celular</label>
+          <input type="tel" value="" disabled>
+        </div>
+      </div>
+      <div class="hint">⚠ Problema: si el dueño tiene 2 parqueaderos y autoriza 2 personas distintas, solo puede registrar 1.</div>
+    </div>
+  </div>
+
+  <!-- =========== DESPUÉS (v2.0) =========== -->
+  <div class="section">
+    <div class="section-head">
+      <span><span class="section-num">3</span>DESPUÉS (v2.0) — Autorización de uso de parqueadero a tercero (si aplica)</span>
+      <span style="font-size:11px;">2 filas × 6 inputs = 12 inputs</span>
+    </div>
+    <div class="section-body">
+
+      <div class="autoriz-row">
+        <div class="row-title">📋 Fila 1 <span class="pill">genérica</span></div>
+        <div class="field-row row-6">
+          <div class="field">
+            <label>N° Parqueadero que autoriza <span class="req">*</span></label>
+            <input type="text" value="Carro 119" placeholder="Ej: Carro 119 / Moto 34">
+            <div class="hint">Texto libre — debe coincidir con parq{1-4}Celda de sección 1</div>
+          </div>
+          <div class="field">
+            <label>Tipo de vehículo <span class="req">*</span></label>
+            <select>
+              <option>Carro</option>
+              <option>Moto</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Placa del vehículo autorizado</label>
+            <input type="text" value="ABC123" placeholder="ABC123 / EJP61H">
+            <div class="hint">Campo libre — cualquier placa</div>
+          </div>
+          <div class="field">
+            <label>Nombre del autorizado <span class="req">*</span></label>
+            <input type="text" value="Juan Pérez Ramírez">
+          </div>
+          <div class="field">
+            <label>Apto N° <span class="req">*</span></label>
+            <input type="text" value="101">
+          </div>
+          <div class="field">
+            <label>Celular <span class="req">*</span></label>
+            <input type="tel" value="316 555 1234">
+          </div>
+        </div>
+      </div>
+
+      <div class="autoriz-row">
+        <div class="row-title">📋 Fila 2 <span class="pill">genérica</span> <span class="empty">— vacía, no se enviará</span></div>
+        <div class="field-row row-6">
+          <div class="field">
+            <label>N° Parqueadero que autoriza <span class="req">*</span></label>
+            <input type="text" placeholder="Ej: Carro 119 / Moto 34">
+          </div>
+          <div class="field">
+            <label>Tipo de vehículo <span class="req">*</span></label>
+            <select>
+              <option>Carro</option>
+              <option>Moto</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Placa del vehículo autorizado</label>
+            <input type="text" placeholder="ABC123 / EJP61H">
+          </div>
+          <div class="field">
+            <label>Nombre del autorizado <span class="req">*</span></label>
+            <input type="text" placeholder="">
+          </div>
+          <div class="field">
+            <label>Apto N° <span class="req">*</span></label>
+            <input type="text" placeholder="">
+          </div>
+          <div class="field">
+            <label>Celular <span class="req">*</span></label>
+            <input type="tel" placeholder="">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =========== EJEMPLO LLENO: dueño con 2 parqueaderos alquilados =========== -->
+  <div class="section">
+    <div class="section-head">
+      <span>📌 Ejemplo completo (modo edición apto 2000): dueño alquila 2 parqueaderos</span>
+      <span style="font-size:11px;">datos simulados</span>
+    </div>
+    <div class="section-body">
+
+      <div class="autoriz-row" style="border-color:#1F5F4A; background:#f0fdf4;">
+        <div class="row-title">📋 Fila 1 — Parqueadero de CARRO autorizado</div>
+        <div class="field-row row-6">
+          <div class="field">
+            <label>N° Parqueadero que autoriza <span class="req">*</span></label>
+            <input type="text" value="Carro 119" readonly>
+          </div>
+          <div class="field">
+            <label>Tipo de vehículo <span class="req">*</span></label>
+            <input type="text" value="Carro" readonly>
+          </div>
+          <div class="field">
+            <label>Placa del vehículo autorizado</label>
+            <input type="text" value="DEF456" readonly>
+          </div>
+          <div class="field">
+            <label>Nombre del autorizado <span class="req">*</span></label>
+            <input type="text" value="Carlos Méndez López" readonly>
+          </div>
+          <div class="field">
+            <label>Apto N° <span class="req">*</span></label>
+            <input type="text" value="305" readonly>
+          </div>
+          <div class="field">
+            <label>Celular <span class="req">*</span></label>
+            <input type="tel" value="318 777 8899" readonly>
+          </div>
+        </div>
+      </div>
+
+      <div class="autoriz-row" style="border-color:#1F5F4A; background:#f0fdf4;">
+        <div class="row-title">📋 Fila 2 — Parqueadero de MOTO autorizado</div>
+        <div class="field-row row-6">
+          <div class="field">
+            <label>N° Parqueadero que autoriza <span class="req">*</span></label>
+            <input type="text" value="Moto 34" readonly>
+          </div>
+          <div class="field">
+            <label>Tipo de vehículo <span class="req">*</span></label>
+            <input type="text" value="Moto" readonly>
+          </div>
+          <div class="field">
+            <label>Placa del vehículo autorizado</label>
+            <input type="text" value="GHI78J" readonly>
+          </div>
+          <div class="field">
+            <label>Nombre del autorizado <span class="req">*</span></label>
+            <input type="text" value="Ana Rodríguez Vega" readonly>
+          </div>
+          <div class="field">
+            <label>Apto N° <span class="req">*</span></label>
+            <input type="text" value="512" readonly>
+          </div>
+          <div class="field">
+            <label>Celular <span class="req">*</span></label>
+            <input type="tel" value="315 222 3344" readonly>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =========== LEYENDA =========== -->
+  <div class="legend">
+    <strong>📖 Reglas de la sección 3 v2.0:</strong>
+    <ul>
+      <li><strong>Si la fila está completamente vacía</strong> → no se envía autorización (caso "no aplica").</li>
+      <li><strong>Si la fila tiene al menos 1 campo lleno</strong>, todos los marcados con <span class="req">*</span> son obligatorios: N°Parq + Tipo + Nombre + Apto + Celular.</li>
+      <li><strong>Placa del vehículo autorizado</strong> es opcional (puede haber parqueadero sin vehículo asignado todavía).</li>
+      <li><strong>N° Parqueadero</strong> es texto libre (no select 1-4). El residente escribe el mismo número que puso en sección 1 parq{1-4}Celda (ej: "Carro 119", "Moto 34", "Sótano 12", etc.).</li>
+      <li><strong>Tipo</strong> es select con 2 opciones: Carro o Moto. Determina qué tipo de vehículo va a ocupar el parqueadero.</li>
+      <li><strong>No hay validación cruzada</strong> entre N°Parq sección 3 y parq{1-4}Celda sección 1 — el backend NO verifica que coincidan. Es responsabilidad del residente escribir bien.</li>
+      <li><strong>Modo edición</strong> de registros viejos (con datos en columnas legacy v[21-23]): se cargan en Fila 1 con N°Parq vacío, Tipo="Carro", Placa vacía. Fila 2 vacía. Datos preservados, no se pierden.</li>
+    </ul>
+  </div>
+
+  <!-- =========== IMPACTO EN SHEET =========== -->
+  <h2 style="color:#1F5F4A; margin-top: 28px;">📊 Impacto en Sheet Registros</h2>
+  <div class="compare">
+    <div class="compare-card old">
+      <div class="label">❌ ANTES (191 columnas)</div>
+      <ul>
+        <li>v[21] = parqTerNom</li>
+        <li>v[22] = parqTerApto</li>
+        <li>v[23] = parqTerCel</li>
+        <li><strong>3 columnas, datos mezclados</strong></li>
+        <li><em>Se mantienen para preservar datos de registros viejos</em></li>
+      </ul>
+    </div>
+    <div class="compare-card new">
+      <div class="label">✅ DESPUÉS (203 columnas)</div>
+      <ul>
+        <li>v[21-23] legacy (sin cambios)</li>
+        <li>v[192-197] = parqTer1{Parq,Tipo,Placa,Nom,Apto,Cel}</li>
+        <li>v[198-203] = parqTer2{Parq,Tipo,Placa,Nom,Apto,Cel}</li>
+        <li><strong>+12 columnas nuevas</strong> al final del Sheet</li>
+        <li><em>Mitad verificable: header + filas 2-45 con celdas vacías</em></li>
+      </ul>
+    </div>
+  </div>
+
+  <h2 style="color:#1F5F4A; margin-top: 28px;">⚙️ Impacto en Codigo.gs</h2>
+  <div class="compare">
+    <div class="compare-card old">
+      <div class="label">❌ ANTES</div>
+      <ul>
+        <li>Lee d.parqTerNom/Apto/Cel</li>
+        <li>Escribe v[21]/v[22]/v[23]</li>
+        <li>Sin validación de la sección</li>
+      </ul>
+    </div>
+    <div class="compare-card new">
+      <div class="label">✅ DESPUÉS</div>
+      <ul>
+        <li>Lee 12 campos: parqTer{1,2}{Parq,Tipo,Placa,Nom,Apto,Cel}</li>
+        <li>Escribe v[192-203]</li>
+        <li>Validación: si fila no vacía, todos los * obligatorios</li>
+        <li>NO valida que N°Parq exista en sección 1</li>
+        <li>NO restringe formato de placa</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

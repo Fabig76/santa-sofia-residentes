@@ -8,7 +8,7 @@ Arquitectura:
 - Base principal en Google Sheets.
 - Lookup de matrículas desde Google Sheets nativo de Santa Sofía.
 
-## Estado actual (15-Sep-2026)
+## Estado actual (16-Sep-2026)
 
 | Componente | URL | Estado |
 |---|---|---|
@@ -17,7 +17,7 @@ Arquitectura:
 | Portal vigilantes | https://fabig76.github.io/santa-sofia-residentes/vigilantes.html | ✅ Activo |
 | Apps Script Web App | `…/AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ/dev` | ✅ Activo |
 
-**Deploy v1.8b** (15-Sep-2026, Versión 14): endpoints admin (`adminLookup` con historial + llaves/tags actuales, `actualizarEntrega` con 5 tipos: llaveros_asignar/devolver, tag_asignar/reasignar/devolver) y vigilantes (`vigilantesLookup` con vehículos + motos) funcionales. URL migrada a sufijo `/dev` por deprecación de `/exec` por Google. Ver `docs/SESIONES.md` sección "v1.8 admin con llaveros y tags individuales".
+**Deploy v1.9** (16-Sep-2026, Versión 15): Sección 3 "Autorización parqueadero a tercero" reescrita — pasa de 3 inputs simples (Nombre/Apto/Celular) a **2 filas × 6 inputs** (N°Parqueadero texto libre / Tipo Moto o Carro / Placa autorizado / Nombre / Apto / Celular). Caso de uso: dueño con parqueadero de carro + parqueadero de moto alquila ambos a inquilinos distintos porque su inquilino no tiene vehículos. Sheet Registros expandido de 191 → 203 columnas (12 nuevas v[191-202]). Compat hacia atrás: registros viejos con datos legacy v[21-23] se cargan en FILA 1 con N°Parq/Tipo/Placa vacíos. Ver `docs/SESIONES.md` sección "v1.9 — Sección 3 v2.0 (2 filas × 6 campos)".
 
 ## Datos del proyecto
 
