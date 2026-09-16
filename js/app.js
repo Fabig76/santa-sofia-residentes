@@ -545,8 +545,9 @@ function validar() {
     ok = false;
   }
 
-  // v2.0 — Sección 3 autorización a tercero (2 filas)
-  // Si la fila tiene AL MENOS un campo lleno, todos los marcados con * son obligatorios (excepto Placa que es opcional).
+  // v2.1 — Sección 3 autorización a tercero (2 filas, sección totalmente opcional)
+  // Si la fila tiene AL MENOS un campo lleno, los demás deben estar completos.
+  // (El residente puede dejar ambas filas vacías si no autoriza parqueadero a nadie.)
   function validarFilaAutoriz(n) {
     const parq   = val(`#parqTer${n}Parq`);
     const tipo   = val(`#parqTer${n}Tipo`);
@@ -556,7 +557,7 @@ function validar() {
     const cel    = val(`#parqTer${n}Cel`);
     const algunoLleno = !!(parq || tipo || placa || nom || apto || cel);
     if (!algunoLleno) return; // Fila vacía → OK, no se envía autorización
-    // Algún campo lleno → validar todos los obligatorios
+    // Algún campo lleno → validar todos los demás (Placa es opcional)
     if (!parq)  { showError(`#parqTer${n}Parq`, `Indique el N° de parqueadero que autoriza en la fila ${n}.`); ok = false; }
     if (!tipo)  { showError(`#parqTer${n}Tipo`, `Seleccione si es Carro o Moto en la fila ${n}.`); ok = false; }
     if (!nom)   { showError(`#parqTer${n}Nom`,  `Indique el nombre del autorizado en la fila ${n}.`); ok = false; }

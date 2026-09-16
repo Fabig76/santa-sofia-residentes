@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Wireframe Sección 3 v2.1 — Fix estético</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; margin: 0; padding: 20px; color: #1f2937; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  h1 { color: #1F5F4A; margin: 0 0 4px 0; font-size: 22px; }
+  .meta { color: #6b7280; font-size: 13px; margin-bottom: 20px; }
+  .changes-banner { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 16px 0; font-size: 13px; color: #5A4500; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .panel { padding: 16px; border-radius: 10px; }
+  .panel.before { background: #fef2f2; border: 1px solid #fecaca; }
+  .panel.after { background: #f0fdf4; border: 1px solid #86efac; }
+  .panel h3 { margin: 0 0 8px; font-size: 14px; }
+  .panel.before h3 { color: #991b1b; }
+  .panel.after h3 { color: #166534; }
+  .autoriz-row { border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; background: #fff; }
+  .row-title { font-weight: 600; color: #1F5F4A; font-size: 14px; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed #cbd5e1; }
+  .field { display: flex; flex-direction: column; }
+  .field label { font-size: 12px; color: #475569; margin-bottom: 4px; font-weight: 500; min-height: 32px; line-height: 1.3; display: flex; align-items: flex-start; gap: 3px; }
+  .field .req { color: #dc2626; }
+  .field input, .field select {
+    box-sizing: border-box;
+    width: 100%;
+    height: 38px;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    background: white;
+  }
+  /* ANTES — grid desbalanceado */
+  .row.row-6.before { display: grid; grid-template-columns: 1fr 1fr 1fr 1.4fr 0.8fr 1fr; gap: 12px; }
+  .row.row-6.before input, .row.row-6.before select { height: auto; }
+  /* DESPUÉS — grid uniforme con ancho mínimo */
+  .row.row-6.after { display: grid; grid-template-columns: repeat(6, minmax(115px, 1fr)); gap: 12px; }
+  .panel.before input, .panel.before select { padding: 9px 11px; height: auto; min-height: 0; }
+  .panel.before label { min-height: 0; height: auto; }
+  .demo-val { color: #94a3b8; font-style: italic; }
+  .legend { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px 16px; margin-top: 18px; font-size: 12px; color: #14532d; }
+  .legend strong { color: #166534; }
+  .legend ul { margin: 6px 0 0 0; padding-left: 20px; }
+  /* Badges con anchos reales */
+  .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-family: monospace; margin-right: 4px; }
+  .badge-w { background: #ddd6fe; color: #5b21b6; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📐 Wireframe Sección 3 v2.1 — Fix estético</h1>
+  <div class="meta">Santa Sofía Club Residencial V.I.S · 16-Sep-2026 · Comparativa ANTES vs DESPUÉS</div>
+
+  <div class="changes-banner">
+    <strong>🔄 Problema reportado:</strong> "los recuadros se ven desalineados no se ve algo estetico".<br>
+    <strong>Causa raíz:</strong> Grid CSS `1fr 1fr 1fr 1.4fr 0.8fr 1fr` generaba anchos desbalanceados (Apto 88px vs Nombre 154px = 75% diferencia). Labels con alturas variables (1 línea, 2 líneas, 3 líneas) hacen que los asteriscos * queden a alturas distintas. Select (38px) vs input (36px) genera diferencia sutil.
+  </div>
+
+  <div class="compare">
+
+    <!-- ============ ANTES ============ -->
+    <div class="panel before">
+      <h3>❌ ANTES (v2.0 deployado) — anchos desbalanceados</h3>
+      <div class="autoriz-row" style="opacity:0.85;">
+        <div class="row-title">Fila 1</div>
+        <div class="row row-6 before">
+          <div class="field">
+            <label>N° Parqueadero que autoriza <span class="req">*</span></label>
+            <input type="text" value="Carro 119">
+          </div>
+          <div class="field">
+            <label>Tipo de vehículo <span class="req">*</span></label>
+            <select><option>Carro</option></select>
+          </div>
+          <div class="field">
+            <label>Placa del vehículo autorizado</label>
+            <input type="text" value="ABC123">
+          </div>
+          <div class="field">
+            <label>Nombre del autorizado <span class="req">*</span></label>
+            <input type="text" value="Juan Pérez">
+          </div>
+          <div class="field">
+            <label>Apto N° <span class="req">*</span></label>
+            <input type="text" value="101">
+          </div>
+          <div class="field">
+            <label>Celular <span class="req">*</span></label>
+            <input type="text" value="316 555 1234">
+          </div>
+        </div>
+        <div style="font-size:11px; color:#64748b; margin-top:8px;">
+          <span class="badge badge-w">110px</span><span class="badge badge-w">110px</span><span class="badge badge-w">110px</span><span class="badge badge-w">154px</span><span class="badge badge-w">88px</span><span class="badge badge-w">110px</span>
+        </div>
+      </div>
+      <div style="margin-top:12px; font-size:12px; color:#7f1d1d;">
+        ⚠ <strong>Apto</strong> (88px) es 20% más estrecho que los demás.<br>
+        ⚠ <strong>Nombre</strong> (154px) es 40% más ancho.<br>
+        ⚠ <strong>Placa</strong> label ocupa 3 líneas, * a altura diferente.<br>
+        ⚠ <strong>Select</strong> (38px) vs <strong>input</strong> (36px): 2px de diferencia.
+      </div>
+    </div>
+
+    <!-- ============ DESPUÉS ============ -->
+    <div class="panel after">
+      <h3>✅ DESPUÉS (v2.1 propuesto) — uniforme y limpio</h3>
+      <div class="autoriz-row">
+        <div class="row-title">Fila 1</div>
+        <div class="row row-6 after">
+          <div class="field">
+            <label>N° Parqueadero <span class="req">*</span></label>
+            <input type="text" value="Carro 119">
+          </div>
+          <div class="field">
+            <label>Tipo <span class="req">*</span></label>
+            <select><option>Carro</option></select>
+          </div>
+          <div class="field">
+            <label>Placa autorizado</label>
+            <input type="text" value="ABC123">
+          </div>
+          <div class="field">
+            <label>Nombre autorizado <span class="req">*</span></label>
+            <input type="text" value="Juan Pérez">
+          </div>
+          <div class="field">
+            <label>Apto N° <span class="req">*</span></label>
+            <input type="text" value="101">
+          </div>
+          <div class="field">
+            <label>Celular <span class="req">*</span></label>
+            <input type="text" value="316 555 1234">
+          </div>
+        </div>
+        <div style="font-size:11px; color:#64748b; margin-top:8px;">
+          <span class="badge badge-w">123px</span><span class="badge badge-w">123px</span><span class="badge badge-w">123px</span><span class="badge badge-w">123px</span><span class="badge badge-w">123px</span><span class="badge badge-w">123px</span>
+        </div>
+      </div>
+      <div style="margin-top:12px; font-size:12px; color:#166534;">
+        ✓ Las 6 columnas tienen el mismo ancho (123px).<br>
+        ✓ Labels cortos (1 línea cada uno, ~32px alto fijo) → * a la misma altura.<br>
+        ✓ Inputs y selects todos a 38px de alto.<br>
+        ✓ Padding uniforme, bordes uniformes.
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <strong>📐 Cambios CSS concretos (solo assets/styles.css + index.html, sin tocar JS ni backend):</strong>
+    <ul>
+      <li><strong>.row.row-6:</strong> grid `1fr 1fr 1fr 1.4fr 0.8fr 1fr` → <code>repeat(6, minmax(115px, 1fr))</code> (uniforme, mínimo 115px por columna)</li>
+      <li><strong>.field label:</strong> agregar <code>min-height: 32px; display:flex; align-items:flex-start; gap:3px</code> (asterisco a misma altura)</li>
+      <li><strong>inputs/selects:</strong> agregar <code>height: 38px</code> explícito (elimina diferencia 36/38px)</li>
+      <li><strong>.autoriz-row:</strong> padding `14px → 18px`, gap `12px → 14px` (más respirado)</li>
+      <li><strong>Labels acortados:</strong> "N° Parqueadero que autoriza" → "N° Parqueadero", "Tipo de vehículo" → "Tipo", "Placa del vehículo autorizado" → "Placa autorizado", "Nombre del autorizado" → "Nombre autorizado" (caben en 1 línea, * alineado)</li>
+      <li><strong>Responsive preservado:</strong> @media 1024px → 3 cols, 640px → 1 col (sigue funcionando)</li>
+    </ul>
+  </div>
+
+  <div class="legend" style="background:#fef3c7; border-color:#f59e0b; color:#5A4500; margin-top:14px;">
+    <strong>⚠ Decisiones a confirmar contigo:</strong>
+    <ul>
+      <li>¿OK acortar los labels? (siguen siendo claros pero caben en 1 línea)</li>
+      <li>¿OK el grid uniforme? (todos los inputs del mismo ancho)</li>
+      <li>¿OK mantener el asterisco rojo * en cada label obligatorio?</li>
+      <li>¿OK aplicar el cambio SIN nuevo wireframe? (cambio solo CSS, no toca lógica)</li>
+    </ul>
+  </div>
+
+</div>
+
+</body></html>
