@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Wireframe Admin v1.8 — Apto 2000 (preview)</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; margin: 0; padding: 20px; color: #1f2937; }
+  .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  h1 { color: #1F5F4A; margin: 0 0 4px 0; font-size: 22px; }
+  h2 { color: #1F5F4A; margin-top: 28px; margin-bottom: 10px; font-size: 16px; padding-bottom: 6px; border-bottom: 2px solid #1F5F4A; }
+  .meta { color: #6b7280; font-size: 13px; margin-bottom: 20px; }
+  .badge { display: inline-block; background: #1F5F4A; color: white; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; margin-right: 4px; }
+  .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; }
+  .card-title { font-weight: bold; color: #1F5F4A; margin-bottom: 8px; }
+  .field-row { display: flex; gap: 12px; margin-bottom: 6px; align-items: center; }
+  .field-label { width: 130px; color: #6b7280; font-size: 13px; }
+  .field-value { flex: 1; color: #1f2937; font-size: 13px; font-weight: 500; }
+  .search-bar { display: flex; gap: 10px; align-items: center; padding: 12px; background: #f1f5f9; border-radius: 8px; margin-bottom: 20px; }
+  .search-bar input { flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+  .search-bar button { padding: 8px 16px; background: #1F5F4A; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+  .vehiculo-row { display: grid; grid-template-columns: 24px 1fr 100px 200px; gap: 10px; align-items: center; padding: 8px; border-bottom: 1px solid #e2e8f0; }
+  .vehiculo-row:last-child { border-bottom: none; }
+  .vehiculo-row .icon { font-size: 18px; }
+  .vehiculo-row .placa { font-family: monospace; font-weight: bold; color: #1F5F4A; }
+  .vehiculo-row input { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: monospace; }
+  .vehiculo-row .has-tag { background: #fef3c7; border-color: #f59e0b; }
+  .textarea-llaves { width: 100%; min-height: 60px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: monospace; font-size: 13px; }
+  .btn { padding: 10px 20px; background: #1F5F4A; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+  .btn-secondary { background: #6b7280; }
+  .historico-row { padding: 6px 0; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #4b5563; }
+  .historico-row:last-child { border-bottom: none; }
+  .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px; margin: 10px 0; font-size: 13px; color: #5A4500; }
+  .demo-banner { background: #dbeafe; border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 20px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🏢 Administración — Entrega de Tags y Llaveros</h1>
+  <div class="meta">Santa Sofía Club Residencial V.I.S · NIT 901142051-3</div>
+
+  <div class="demo-banner">
+    <strong>📐 Wireframe v1.8 (preview)</strong> — Renderizado con datos reales del apto 2000 creados para pruebas. La UI final puede variar ligeramente.
+  </div>
+
+  <div class="search-bar">
+    <input value="2000" readonly>
+    <button>🔍 Buscar apartamento</button>
+  </div>
+
+  <h2>📋 APTO 2000 — APTO DE PRUEBAS</h2>
+  <div class="card">
+    <div class="card-title">Datos del titular</div>
+    <div class="field-row"><div class="field-label">Nombre:</div><div class="field-value">YURY APTO DE PRUEBAS</div></div>
+    <div class="field-row"><div class="field-label">C.C.:</div><div class="field-value">1.094.923.637</div></div>
+    <div class="field-row"><div class="field-label">Correo:</div><div class="field-value">yury.prueba@santasoftest.com</div></div>
+    <div class="field-row"><div class="field-label">Celular:</div><div class="field-value">317 303 5221</div></div>
+    <div class="field-row"><div class="field-label">Tel. fijo:</div><div class="field-value">(604) 999 9999</div></div>
+    <div class="field-row"><div class="field-label">Estado:</div><div class="field-value"><span class="badge">PROPIETARIO</span></div></div>
+    <div class="field-row"><div class="field-label">Matrícula apto:</div><div class="field-value">280-999999 (TEST)</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">👥 Residentes (2)</div>
+    <div class="field-row"><div class="field-label">• Juan Pérez</div><div class="field-value">esposo · CC 9999999 · 300 111 1111</div></div>
+    <div class="field-row"><div class="field-label">• María López</div><div class="field-value">esposa · CC 8888888 · 300 222 2222</div></div>
+  </div>
+
+  <h2>🏷️ TAGS VEHICULARES (atados a vehículo)</h2>
+  <div class="warning">
+    ⚠️ Los tags no son reutilizables. Si un vehículo se va, el tag se libera y se registra la devolución. No se puede reasignar a otro vehículo.
+  </div>
+  <div class="card">
+    <div class="vehiculo-row">
+      <div class="icon">🚗</div>
+      <div class="placa">PFM367 — Megane 1 sedan gris perla 2008</div>
+      <input value="T-001" class="has-tag" readonly>
+      <span style="font-size: 11px; color: #92400e;">✓ Asignado</span>
+    </div>
+    <div class="vehiculo-row">
+      <div class="icon">🏍️</div>
+      <div class="placa">EJP61H — hero hunk 160r negro mate 2026</div>
+      <input value="T-002" class="has-tag" readonly>
+      <span style="font-size: 11px; color: #92400e;">✓ Asignado</span>
+    </div>
+    <div class="vehiculo-row">
+      <div class="icon">🚗</div>
+      <div class="placa">GHI789 — Chevrolet Spark rojo 2019</div>
+      <input placeholder="Sin asignar">
+      <span style="font-size: 11px; color: #6b7280;">○ Pendiente</span>
+    </div>
+    <div style="margin-top: 14px; text-align: right;">
+      <button class="btn">💾 Guardar tags</button>
+    </div>
+  </div>
+
+  <h2>🔑 LLAVEROS PEATONALES (genéricos)</h2>
+  <div class="warning">
+    ℹ️ Los llaveros son genéricos. Cada K-NNN puede asignarse a cualquier apto, pero no puede estar duplicado simultáneamente.
+  </div>
+  <div class="card">
+    <div style="margin-bottom: 8px; font-size: 13px; color: #6b7280;">
+      Llaveros actualmente asignados a este apto:
+      <strong style="color: #1f2937;">K-001, K-002, K-003</strong>
+    </div>
+    <textarea class="textarea-llaves">K-001, K-002, K-003</textarea>
+    <div style="margin-top: 4px; font-size: 11px; color: #6b7280;">
+      Última asignación: 15/09/2026 19:05 · "Inicial prueba"
+    </div>
+    <div style="margin-top: 14px; text-align: right;">
+      <button class="btn">💾 Guardar llaveros</button>
+    </div>
+  </div>
+
+  <h2>🐕 Mascotas (2)</h2>
+  <div class="card">
+    <div class="field-row"><div class="field-label">🐕 Firulais</div><div class="field-value">Perro · Labrador · Macho · Vacuna: 2025-12-15</div></div>
+    <div class="field-row"><div class="field-label">🐈 Michi</div><div class="field-value">Gato · Siamés · Hembra · Vacuna: 2025-08-20</div></div>
+  </div>
+
+  <h2>🚶 Parqueaderos (1)</h2>
+  <div class="card">
+    <div class="field-row"><div class="field-label">Carro 119</div><div class="field-value">Matrícula: 280-215020</div></div>
+  </div>
+
+  <h2>📜 Historial de eventos del apto</h2>
+  <div class="card">
+    <div class="historico-row"><strong>15/09 19:05</strong> | <span class="badge">Llaveros Asignar</span> | K-001, K-002, K-003 | "Inicial prueba"</div>
+    <div class="historico-row"><strong>15/09 19:06</strong> | <span class="badge">Tag Asignar</span> | PFM367=T-001 | "Vehículo titular"</div>
+    <div class="historico-row"><strong>15/09 19:07</strong> | <span class="badge">Tag Asignar</span> | EJP61H=T-002 | "Moto titular"</div>
+    <div class="historico-row" style="text-align: center;"><button class="btn btn-secondary" style="font-size: 11px;">Ver más...</button></div>
+  </div>
+
+</div>
+</body>
+</html>
