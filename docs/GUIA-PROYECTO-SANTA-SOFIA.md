@@ -39,12 +39,12 @@ https://drive.google.com/drive/folders/1GHR3HITyjPlIFbGrEYZWVAuMewdSzxF7
 
 - **Sheet principal de respuestas**:
   https://docs.google.com/spreadsheets/d/1xL359rDrhb3_qbhY-tm2MfPXKBqbAehC3zWzsMv1PUo/edit
-  Pestañas: `Registros` (143 cols), `Maestros`
+  Pestañas: `Registros` (191 cols — parqueaderos/vehículos/motos/mascotas 2→4 desde v1.7), `Maestros`
 - **Sheet nativo de matrículas para lookup**:
   https://docs.google.com/spreadsheets/d/1qEnC5BCRags2r_RHQiB0LjK6Or1rx31Gvopr22-n12w/edit
   Pestañas: `Resumen y Matrículas`, `Apartamentos`, `Parqueaderos`
 - **Hoja `Entregas`** (se crea automáticamente al primer uso desde admin.html):
-  Estructura: Fecha, Tipo (Entrega/Devolucion), N° Formulario, N° Apto, Llaveros, Tags, Placas Asignadas, Placas Devueltas, Observaciones, Admin
+  Estructura (v1.8b): Fecha, Tipo (`Llaveros Asignar` / `Llaveros Devolver` / `Tag Asignar` / `Tag Reasignar` / `Tag Devolver`), N° Formulario, N° Apto, Llaveros (texto: "K-001, K-002, K-003"), Tags (texto: "PFM367=T-001; EJP61H=T-002"), Placas Asignadas con Tag, Placas Devueltas con Tag, Observaciones, Admin
 
 ---
 
@@ -117,7 +117,7 @@ Algunos apartamentos NO tienen parqueadero asignado (ni carro ni moto). El formu
 
 URL: https://fabig76.github.io/santa-sofia-residentes/
 
-12 secciones:
+12 secciones visibles para el residente:
 - 0 Encabezado (datos del conjunto readonly)
 - 1 Datos del propietario
 - 2 Datos del encargado o administrador del inmueble (si aplica)
@@ -125,10 +125,10 @@ URL: https://fabig76.github.io/santa-sofia-residentes/
 - 4 Inmobiliaria y/o representante del propietario (si aplica)
 - 5 Datos de los residentes del apartamento (mayores de edad, hasta 4)
 - 5.1 Menores de edad (hasta 4)
-- 6 Vehículos y motos (2 vehículos + 2 motos)
+- 6 Vehículos y motos (hasta 4 vehículos + 4 motos)
 - 7 Bicicletas (máx. 2)
-- ~~8 Control de entrega de llaveros y tags~~ (ELIMINADA — va en panel admin)
-- 9 Mascotas / Animales de compañía (Decreto 768/2025, hasta 2)
+- **~~8 Control de entrega de llaveros y tags~~** — ELIMINADA del form público el 8-Sep-2026 (commit 98f3d38). La numeración queda con hueco visible `7 → 9` por decisión arquitectónica (la gestión de llaveros/tags se hace desde el panel admin `admin.html`). Decisión documentada; NO se va a renumerar.
+- 9 Mascotas / Animales de compañía (Decreto 768/2025, hasta 4)
 - 10 Contactos en caso de urgencia (hasta 2)
 - 11 Autorización de tratamiento de datos (Ley 1581/2012) + firma
 
@@ -372,19 +372,29 @@ NO hacer `git push` sin OK explícito del operador.
 ### Apps Script (deploy manual desde cuenta `santasofia.clubresidencial@gmail.com`)
 
 1. Abrir https://script.google.com/home
-2. Proyecto: `Santa Sofía - Formulario Residentes Backend`
-3. El archivo `Codigo.gs` actual es la versión v1.3 (14-Sep-2026 20:16)
-4. **Cada "Nueva implementación" genera URL nueva** — hay que actualizar `APPS_SCRIPT_URL` en `js/app.js` y `js/admin.js` y hacer commit + push.
+3. Proyecto: `Santa Sofía - Formulario Residentes Backend`
+4. El archivo `Codigo.gs` actual es la versión v1.8b (15-Sep-2026 13:08)
+5. **Cada "Nueva implementación" genera URL nueva** — pero para updates pequeños usar **"Nueva versión"** (preserva la URL). Verificar con `grep -n "APPS_SCRIPT_URL" js/*.js` que los 3 JS apuntan a la URL activa.
 
-#### URL activa (deploy #9 "Versión 9" del 14-Sep-2026 12:58 — fix adminLookup placas)
+#### URL activa (deploy v1.8b "Versión 14" del 15-Sep-2026 13:08 — sufijo `/dev`)
 
 ```
-https://script.google.com/macros/s/AKfycby8fjAwe8y2AF06L1oOAIH8I7fA4JOIBVSnIvuculImafsEb6QPXjcq58na-BDd4Hirdg/exec
+https://script.google.com/macros/s/AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ/dev
 ```
 
-Deploy ID: `AKfycby8fjAwe8y2AF06L1oOAIH8I7fA4JOIBVSnIvuculImafsEb6QPXjcq58na-BDd4Hirdg`
+Deploy ID: `AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ`
+Archivo origen: `Codigo_gs_Santa_Sofia_v1.8b-FINAL-20260915-203100.gs` (md5 `5c0e6666ec331d5468fe6f14d62d7fe2`)
+- Drive: https://drive.google.com/file/d/1MAGWW1QMID4A9qAmx0esw0o-Icd0UBDT/view
 
-Archivo origen: `Codigo_gs_Santa_Sofia_v1.5.gs` (md5 `7de27291dc8851da3d3faedae0ff896d`)
+#### Nota sobre migración `/exec` → `/dev` (15-Sep-2026)
+
+El endpoint `/exec` de Apps Script Web App está **deprecado por Google**: el gateway
+responde de forma intermitente (a veces JSON, a veces HTML 404, a veces vacío). El
+mismo deploy funciona con sufijo `/dev` (ruta directa al backend). **Al crear una
+"Nueva implementación" Google SIEMPRE devuelve URL con `/exec`** en el diálogo;
+tomar el ID y construir manualmente la URL con sufijo `/dev`. Receta completa en
+`references/apps-script-exec-deprecation.md` y entrada "Migración de `/exec` a `/dev`"
+en `docs/SESIONES.md`.
 - Drive: https://drive.google.com/file/d/12doJNa_zlrEtkZOwImoo0Sowz1xmtTDq/view?usp=drivesdk
 
 ### Cambios v1.2 → v1.3
@@ -680,24 +690,26 @@ Esto requiere decisión y planificación, por eso no se hizo en esta sesión (el
 ### Sheets
 
 - **Sheet principal de respuestas**: https://docs.google.com/spreadsheets/d/1xL359rDrhb3_qbhY-tm2MfPXKBqbAehC3zWzsMv1PUo/edit
-  Pestañas: `Registros` (143 cols), `Maestros`
+  Pestañas: `Registros` (191 cols desde v1.7 — parqueaderos/vehículos/motos/mascotas 2→4), `Maestros`
 - **Sheet de matrículas lookup**: https://docs.google.com/spreadsheets/d/1qEnC5BCRags2r_RHQiB0LjK6Or1rx31Gvopr22-n12w/edit
   Pestañas: `Resumen y Matrículas`, `Apartamentos`, `Parqueaderos`
 
 ### Backend (Apps Script)
 
-- **Web App URL activa**: https://script.google.com/macros/s/AKfycby8fjAwe8y2AF06L1oOAIH8I7fA4JOIBVSnIvuculImafsEb6QPXjcq58na-BDd4Hirdg/exec
-- **Deploy ID**: `AKfycby8fjAwe8y2AF06L1oOAIH8I7fA4JOIBVSnIvuculImafsEb6QPXjcq58na-BDd4Hirdg`
-- **Versión actual**: v1.5 (deploy #8, 14-Sep-2026 22:53)
-- **Archivo origen**: `Codigo_gs_Santa_Sofia_v1.5.gs` (md5 `7de27291dc8851da3d3faedae0ff896d`)
-  - Drive: https://drive.google.com/file/d/12doJNa_zlrEtkZOwImoo0Sowz1xmtTDq/view?usp=drivesdk
+- **Web App URL activa**: https://script.google.com/macros/s/AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ/dev
+- **Deploy ID**: `AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ`
+- **Versión actual**: v1.8b (Versión 14, 15-Sep-2026 13:08)
+- **Archivo origen**: `Codigo_gs_Santa_Sofia_v1.8b-FINAL-20260915-203100.gs` (md5 `5c0e6666ec331d5468fe6f14d62d7fe2`)
+  - Drive: https://drive.google.com/file/d/1MAGWW1QMID4A9qAmx0esw0o-Icd0UBDT/view
+- **Nota**: el sufijo es `/dev` (no `/exec`). El endpoint `/exec` está deprecado por Google. Ver sección 11 del GUIA y entrada "Migración de `/exec` a `/dev`" en SESIONES.md.
 
 ### Aptos de prueba
 
-| Apto | N° Form | Datos esperados en el portal vigilantes |
+| Apto | N° Form | Uso |
 |---|---|---|
-| **262** | SS-0002 | 2 residentes, 2 vehículos, 1 parqueadero, sin mascotas/menores (el más completo) |
-| **1122** | SS-0001 | Sin residentes, sin vehículos, sin parqueadero (todo vacío) |
+| **262** | SS-0002 | Apto real más completo: 2 residentes, 2 vehículos, 1 parqueadero. Para pruebas de lookup y portal vigilantes. |
+| **1122** | SS-0001 | Apto real vacío: titular sin residentes/vehículos/parqueadero. Para pruebas de estado negativo. |
+| **2000** | **TEST-2000** | **Apto de pruebas permanente** (creado 15-Sep-2026). Titular "YURY APTO DE PRUEBAS", 3 vehículos (PFM367, GHI789, EJP61H), 2 residentes, 2 mascotas, 1 parqueadero. **Usar para TODAS las pruebas destructivas de admin/llaveros/tags** — NUNCA afecta residentes reales. NO borrar del Sheet. |
 
 ### Manual para residentes (Drive)
 

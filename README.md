@@ -17,7 +17,7 @@ Arquitectura:
 | Portal vigilantes | https://fabig76.github.io/santa-sofia-residentes/vigilantes.html | ✅ Activo |
 | Apps Script Web App | `…/AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ/dev` | ✅ Activo |
 
-**Deploy v1.6** (15-Sep-2026): endpoints admin (adminLookup, asignarDispositivos, devolverDispositivos) y vigilantes (vigilantesLookup) funcionales. URL migrada a sufijo `/dev` por deprecación de `/exec` por Google. Ver `docs/SESIONES.md` sección "15-Sep-2026 — Migración de `/exec` a `/dev`".
+**Deploy v1.8b** (15-Sep-2026, Versión 14): endpoints admin (`adminLookup` con historial + llaves/tags actuales, `actualizarEntrega` con 5 tipos: llaveros_asignar/devolver, tag_asignar/reasignar/devolver) y vigilantes (`vigilantesLookup` con vehículos + motos) funcionales. URL migrada a sufijo `/dev` por deprecación de `/exec` por Google. Ver `docs/SESIONES.md` sección "v1.8 admin con llaveros y tags individuales".
 
 ## Datos del proyecto
 
