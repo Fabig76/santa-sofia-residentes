@@ -417,5 +417,71 @@ Carpeta Drive: https://drive.google.com/drive/folders/1JGu7x5MmEG81q427y_K-2xmPG
 
 ### Pendiente
 
-- [ ] Push git a origin/main (espera OK explícito del operador).
-- [ ] Verificación final por el operador en producción (frontend v2.0 visible tras push).
+- [x] Push git a origin/main — COMPLETADO (4 commits pusheados en la tarde)
+- [x] Verificación final por el operador en producción — COMPLETADO (frontend v2.0 visible)
+
+---
+
+## 16-Sep-2026 — v2.1 Fix estético sección 3 (commit `9ee4a12`)
+
+### Síntoma reportado por el operador
+
+"ya revise el formato todo quedo ok pero revisa la imagen y podras ver que los recuadros se ven desalineados no se ve algo estetico"
+
+Imagen adjunta Drive: `1kMeLW1O76suKVik2tLF0iTw6lohPKJ_P` (WhatsApp 16-Sep 12:15).
+
+### Diagnóstico
+
+Inspección CSS con browser_console sobre la URL en producción midió:
+- Grid CSS `1fr 1fr 1fr 1.4fr 0.8fr 1fr` → anchos reales: 110, 110, 110, 154, 110, 88 px (Apto 20% más estrecho que los demás, Nombre 40% más ancho)
+- Labels con alturas variables: 39, 39, 59, 20, 20, 20 px (Placa label en 3 líneas, * a alturas distintas)
+- `<select>` 38px vs `<input>` 36px (diferencia sutil de 2px)
+- Total desbalance del 75% entre la columna más ancha y la más estrecha
+
+### Fix aplicado
+
+**Frontend (`index.html`):**
+- Quitar asteriscos rojos (`<span class="req">*</span>`) de los 10 labels obligatorios — la sección es totalmente opcional, hay residentes que no autorizan parqueadero a nadie (decisión confirmada por operador)
+- Acortar labels para que quepan en 1 línea:
+  - "N° Parqueadero que autoriza *" → "N° Parqueadero"
+  - "Tipo de vehículo *" → "Tipo"
+  - "Placa del vehículo autorizado" → "Placa autorizado"
+  - "Nombre del autorizado *" → "Nombre autorizado"
+- Padding `.autoriz-row` 14px → 18px (más respirado)
+- Texto de ayuda en itálica bajo cada fila (clase `.field-hint`)
+
+**CSS (`assets/styles.css`):**
+- `.row.row-6` grid: `1fr 1fr 1fr 1.4fr 0.8fr 1fr` → `repeat(6, minmax(115px, 1fr))` (uniforme)
+- `.autoriz-row .field input/select`: `height: 38px; box-sizing: border-box` (elimina diferencia select/input)
+- `.autoriz-row .field label`: `min-height: 32px; line-height: 1.3` (asterisco a misma altura)
+- `.field-hint`: estilo consistente para texto de ayuda
+- `@media 1024px` cambia de `1fr 1fr 1fr` a `repeat(3, 1fr)` (responsive preservado)
+
+**JS (`js/app.js`):**
+- Solo comentario actualizado v2.0 → v2.1
+- La lógica de validación NO cambió: fila vacía OK, fila con algún campo → exige resto
+
+### Lo que NO se tocó
+
+- `Codigo.gs` backend (sigue validando fila incompleta con error descriptivo)
+- Sheet Registros (sigue 203 cols, 12 nuevos)
+- Modo edición / lookup / fallback legacy
+- Deploy Apps Script (no requirió re-deploy)
+
+### Verificación post-fix
+
+Midiendo el CSS del frontend en PRODUCCIÓN (https://fabig76.github.io/santa-sofia-residentes/) tras el push:
+- Grid template: `115px 115px 115px 115px 115px 115px` (uniforme)
+- 6 inputs: ancho 115px × alto 38px (todos idénticos)
+- Asteriscos rojos en sección 3: 0
+- Textos de ayuda: 2 (uno por fila)
+
+### Commit + push
+
+- Commit `9ee4a12`: `style(v2.1): sección 3 uniforme — sin asteriscos rojos + grid 6 col iguales`
+- Push OK: `dd42746..9ee4a12 main -> main`
+- GitHub Pages propagado tras ~30s
+
+### Pendiente
+
+- (ninguno — operador confirmó en WhatsApp "ya revise el formato todo quedo ok")

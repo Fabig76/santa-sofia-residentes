@@ -17,7 +17,12 @@ Arquitectura:
 | Portal vigilantes | https://fabig76.github.io/santa-sofia-residentes/vigilantes.html | ✅ Activo |
 | Apps Script Web App | `…/AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ/dev` | ✅ Activo |
 
-**Deploy v1.9** (16-Sep-2026, Versión 15): Sección 3 "Autorización parqueadero a tercero" reescrita — pasa de 3 inputs simples (Nombre/Apto/Celular) a **2 filas × 6 inputs** (N°Parqueadero texto libre / Tipo Moto o Carro / Placa autorizado / Nombre / Apto / Celular). Caso de uso: dueño con parqueadero de carro + parqueadero de moto alquila ambos a inquilinos distintos porque su inquilino no tiene vehículos. Sheet Registros expandido de 191 → 203 columnas (12 nuevas v[191-202]). Compat hacia atrás: registros viejos con datos legacy v[21-23] se cargan en FILA 1 con N°Parq/Tipo/Placa vacíos. Ver `docs/SESIONES.md` sección "v1.9 — Sección 3 v2.0 (2 filas × 6 campos)".
+**Deploy v2.1** (16-Sep-2026, Versión 15 Apps Script + commit `9ee4a12`):
+- **Backend v1.9** (Versión 15, Apps Script) — Sección 3 "Autorización parqueadero a tercero" reescrita: pasa de 3 inputs simples (Nombre/Apto/Celular) a **2 filas × 6 inputs** (N°Parqueadero texto libre / Tipo Moto o Carro / Placa autorizado / Nombre / Apto / Celular). Sheet Registros expandido de 191 → 203 columnas (12 nuevas v[191-202]).
+- **Frontend v2.1** (commit `9ee4a12`) — Fix estético de la sección 3: asteriscos rojos quitados (la sección es totalmente opcional, hay residentes que no autorizan parqueadero a nadie), labels acortados para 1 línea, grid uniforme de 6 columnas (115px cada una), inputs/selects a 38px de alto fijo, padding más generoso, texto de ayuda en itálica bajo cada fila.
+- Caso de uso: dueño con parqueadero de carro + parqueadero de moto alquila ambos a inquilinos distintos porque su inquilino no tiene vehículos.
+- Compat hacia atrás: registros viejos con datos legacy v[21-23] se cargan en FILA 1 con N°Parq/Tipo/Placa vacíos.
+- Ver `docs/SESIONES.md` secciones "v1.9 — Sección 3 v2.0" y "v2.1 — Fix estético sección 3".
 
 ## Datos del proyecto
 

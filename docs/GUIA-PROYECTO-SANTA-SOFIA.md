@@ -1,6 +1,11 @@
 # GUÍA DEL PROYECTO — Santa Sofía Residentes
 
-Última actualización: 14-Sep-2026 (auditoría integral + fix adminLookup "placas", deploy Versión 9)
+Última actualización: 16-Sep-2026 (deploy v2.1 — sección 3 v2.0 + fix estético)
+
+Histórico de actualizaciones:
+- 14-Sep-2026 (auditoría integral + fix adminLookup "placas", deploy Versión 9)
+- 15-Sep-2026 (migración /exec → /dev, deploy v1.8b Versión 14)
+- 16-Sep-2026 (sección 3 v2.0 backend v1.9 Versión 15 + frontend v2.1 fix estético)
 
 ---
 
@@ -9,7 +14,7 @@
 Implementar para Santa Sofía Club Residencial V.I.S el mismo patrón funcional usado en Cerro Azul:
 - Página pública con formulario de residentes (HTML/CSS/JS en GitHub Pages)
 - Backend Apps Script (Web App deployado)
-- Base de datos en Google Sheets (143 columnas)
+- Base de datos en Google Sheets (203 columnas: 191 v1.7 + 12 v2.0 sección 3)
 - **NUEVO**: Panel admin privado para gestión de llaveros/tags (admin.html)
 
 ---
@@ -39,7 +44,7 @@ https://drive.google.com/drive/folders/1GHR3HITyjPlIFbGrEYZWVAuMewdSzxF7
 
 - **Sheet principal de respuestas**:
   https://docs.google.com/spreadsheets/d/1xL359rDrhb3_qbhY-tm2MfPXKBqbAehC3zWzsMv1PUo/edit
-  Pestañas: `Registros` (191 cols — parqueaderos/vehículos/motos/mascotas 2→4 desde v1.7), `Maestros`
+  Pestañas: `Registros` (203 cols desde v2.0 — 191 base + 12 sección 3), `Maestros`
 - **Sheet nativo de matrículas para lookup**:
   https://docs.google.com/spreadsheets/d/1qEnC5BCRags2r_RHQiB0LjK6Or1rx31Gvopr22-n12w/edit
   Pestañas: `Resumen y Matrículas`, `Apartamentos`, `Parqueaderos`
@@ -121,7 +126,44 @@ URL: https://fabig76.github.io/santa-sofia-residentes/
 - 0 Encabezado (datos del conjunto readonly)
 - 1 Datos del propietario
 - 2 Datos del encargado o administrador del inmueble (si aplica)
-- 3 Autorización de uso de parqueadero a tercero (si aplica)
+### Sección 3 — Autorización parqueadero a tercero (v2.0 desde 16-Sep-2026)
+
+Sección TOTALMENTE OPCIONAL (no tiene asterisco rojo). Si el residente NO autoriza parqueadero a nadie, deja ambas filas vacías. Si autoriza, completa los 6 campos de la fila correspondiente.
+
+**Caso de uso**: dueño con parqueadero de carro + parqueadero de moto alquila ambos a inquilinos distintos porque su inquilino no tiene vehículos y los renta por separado.
+
+**Estructura (2 filas × 6 inputs cada una):**
+
+| Campo | Tipo | Obligatorio (si la fila se usa) | Notas |
+|---|---|---|---|
+| N° Parqueadero | texto libre | sí | Mismo número que el residente puso en sección 1 `parq{1-4}Celda` (ej: "Carro 119", "Moto 34") |
+| Tipo | select Moto/Carro | sí | Determina qué tipo de vehículo ocupa el parqueadero |
+| Placa autorizado | texto libre | NO (opcional) | Placa del vehículo del TERCERO autorizado (no del dueño) |
+| Nombre autorizado | texto libre | sí | Nombre del tercero |
+| Apto N° | texto libre | sí | Apto del tercero |
+| Celular | texto libre | sí | Celular del tercero |
+
+**Reglas de validación:**
+- Fila completamente vacía → OK, no se envía autorización
+- Fila con al menos un campo → el resto (excepto Placa) debe estar lleno
+- Backend (Codigo.gs v1.9) lanza error descriptivo si la fila está incompleta
+
+**Compatibilidad hacia atrás:**
+- Registros viejos con datos en `v[21-23]` (legacy Nombre/Apto/Celular): al editar se cargan en FILA 1 con N°Parq/Tipo/Placa vacíos
+- Registros nuevos: se guardan en `v[191-202]`; eco legacy automático en `v[21-23]` = fila 1
+
+**Fix estético v2.1** (commit `9ee4a12`, mismo día):
+- Asteriscos rojos quitados (la sección es opcional)
+- Labels acortados para 1 línea
+- Grid uniforme de 6 columnas (115px cada una)
+- Inputs/selects a 38px de alto fijo
+- Padding más generoso (18px)
+- Texto de ayuda en itálica bajo cada fila
+
+**Columnas Sheet Registros (v2.0):**
+- v[21-23] legacy: parqTerNom, parqTerApto, parqTerCel (preservados)
+- v[191-196] nuevos fila 1: parqTer1{Parq, Tipo, Placa, Nom, Apto, Cel}
+- v[197-202] nuevos fila 2: parqTer2{Parq, Tipo, Placa, Nom, Apto, Cel}
 - 4 Inmobiliaria y/o representante del propietario (si aplica)
 - 5 Datos de los residentes del apartamento (mayores de edad, hasta 4)
 - 5.1 Menores de edad (hasta 4)
@@ -373,18 +415,18 @@ NO hacer `git push` sin OK explícito del operador.
 
 1. Abrir https://script.google.com/home
 3. Proyecto: `Santa Sofía - Formulario Residentes Backend`
-4. El archivo `Codigo.gs` actual es la versión v1.8b (15-Sep-2026 13:08)
+4. El archivo `Codigo.gs` actual es la versión **v1.9** (16-Sep-2026 12:02 — sección 3 v2.0)
 5. **Cada "Nueva implementación" genera URL nueva** — pero para updates pequeños usar **"Nueva versión"** (preserva la URL). Verificar con `grep -n "APPS_SCRIPT_URL" js/*.js` que los 3 JS apuntan a la URL activa.
 
-#### URL activa (deploy v1.8b "Versión 14" del 15-Sep-2026 13:08 — sufijo `/dev`)
+#### URL activa (deploy v1.9 "Versión 15" del 16-Sep-2026 12:02 — sufijo `/dev`)
 
 ```
 https://script.google.com/macros/s/AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ/dev
 ```
 
 Deploy ID: `AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ`
-Archivo origen: `Codigo_gs_Santa_Sofia_v1.8b-FINAL-20260915-203100.gs` (md5 `5c0e6666ec331d5468fe6f14d62d7fe2`)
-- Drive: https://drive.google.com/file/d/1MAGWW1QMID4A9qAmx0esw0o-Icd0UBDT/view
+Archivo origen: `Codigo_gs_Santa_Sofia_v1.9-DEPLOYED-20260916-190941.gs` (55,742 bytes, subido a Drive)
+- Drive: https://drive.google.com/drive/folders/1JGu7x5MmEG81q427y_K-2xmPGmuaRLAq
 
 #### Nota sobre migración `/exec` → `/dev` (15-Sep-2026)
 
@@ -433,6 +475,41 @@ en `docs/SESIONES.md`.
    - Endpoints verificados y funcionando: `nextId`, `lookupMatApto`, `lookupMatParq`, `lookup`, `vigilantesLookup`, `adminLookup`.
    - Tipo de parqueadero va embebido en `parq1Celda` ("Carro 119", "Moto 127"); NO hay columna "Tipo" separada.
 
+### Cambios v1.6 → v1.8b (15-Sep-2026, Versión 14)
+
+1. **Migración `/exec` → `/dev`** por deprecación del gateway de Google para Apps Script Web App. Misma URL del deploy, sufijo cambiado.
+2. **Panel admin rediseñado** (`admin.html` + `js/admin.js`): UI más limpia, historial de entregas/devoluciones, asignación de tags individuales por placa, llaveros como texto.
+3. **Sheet expandido a 191 cols** (versión previa 143): vehículos 3-4 (+12), motos 3-4 (+12), mascotas 3-4 (+20), parqueaderos 3-4 (+4).
+4. **Hoja `Entregas`** se crea automáticamente con 10 columnas (Fecha, Tipo, N°Form, N°Apto, Llaveros, Tags, Placas Asignadas, Placas Devueltas, Observaciones, Admin).
+5. **5 tipos de evento** soportados: `Llaveros Asignar`, `Llaveros Devolver`, `Tag Asignar`, `Tag Reasignar`, `Tag Devolver`.
+6. **`vigilantesLookup` actualizado** para usar `rowToObject` (patrón v1.5) en vez de `extractPlacas`.
+
+### Cambios v1.8b → v2.0/v2.1 (16-Sep-2026, Versión 15)
+
+**Backend v1.9** (Versión 15, deployado por operador):
+- Sección 3 reescrita: 2 filas × 6 inputs (v[191-202] nuevos)
+- Sheet Registros expandido 191 → 203 cols
+- `NUM_COLS = 203`
+- `buildRowFromPayload` valida filas y lanza error si están incompletas
+- `rowToObject` devuelve los 12 campos nuevos con fallback legacy
+
+**Frontend v2.0** (commit `dd42746`):
+- `index.html` sección 3 reescrita con 2 filas × 6 inputs
+- `assets/styles.css` clase `.row.row-6` agregada con breakpoints responsive
+- `js/app.js` `poblarFormulario` + `recolectar` + `validar` actualizados
+
+**Frontend v2.1** (commit `9ee4a12`) — Fix estético:
+- Asteriscos rojos quitados de los 10 labels (sección es totalmente opcional)
+- Labels acortados para 1 línea
+- Grid uniforme de 6 columnas (115px cada una)
+- Inputs/selects a 38px de alto fijo
+- Padding más generoso (18px)
+- Texto de ayuda en itálica bajo cada fila
+
+**Wireframes**:
+- `docs/wireframe-parq-tercero-v19.html` — wireframe inicial v2.0 aprobado por operador
+- `docs/wireframe-parq-tercero-v21.html` — wireframe comparativo ANTES/DESPUÉS del fix estético v2.1
+
 ---
 
 ## 11.1 Aptos de prueba para verificación
@@ -441,8 +518,9 @@ en `docs/SESIONES.md`.
 |---|---|---|
 | **262** | SS-0002 | 2 residentes (Fandry esposa + Pablo esposo), 2 vehículos (Megane PFM367 + Moto EJP61H), 1 parqueadero (Carro 119), sin mascotas ni menores |
 | **1122** | SS-0001 | Yazmin Rocha (titular) sin residentes adicionales, sin vehículos, sin parqueadero, sin mascotas (todo vacío) |
+| **2000** | TEST-2000 | **Apto de prueba permanente** — datos sintéticos de YURY APTO DE PRUEBAS, 7 eventos en hoja Entregas (asignaciones/devoluciones de T-001, T-002, llaveros). Usado para regresión de admin panel y vigilancia. NO modificar ni borrar. |
 
-Para verificar el portal vigilantes, consultar `apto=262` (el más completo) y `apto=1122` (el vacío).
+Para verificar el portal vigilantes, consultar `apto=262` (el más completo) y `apto=1122` (el vacío). Para regresión admin, `apto=2000`.
 
 ---
 
