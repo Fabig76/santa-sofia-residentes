@@ -95,7 +95,7 @@ Existe `fix_adminLookup_placas.txt` (2186 bytes) en la raíz del repo, untracked
    - Subir respaldo a Drive
    - Crear versión pública sin tokens (`Codigo-public.gs`)
 2. **Decidir qué hacer con `fix_adminLookup_placas.txt`** — commitear como doc o eliminar.
-3. **Renumerar secciones del form público** — hueco `7 → 9` por remoción de sección 8 (commit 98f3d38). 3 opciones en `references/section-8-numbering-gap.md`. Pendiente desde 15-Sep-2026.
+3. **Renumerar secciones del form público** — hueco `7 → 9` por remoción de sección 8 (commit 98f3d38). 3 opciones evaluadas (renumerar / placeholder / aceptar). Pendiente desde 15-Sep-2026.
 4. **Verificación final por el operador** — confirmar en su navegador (no el sandbox del agente) que Editar/Admin/Vigilantes funcionan end-to-end con la nueva URL `/dev`.
 
 ---
@@ -304,16 +304,62 @@ Insertado directamente en Sheet Registros fila 45 (numForm `TEST-2000`) para pru
    - Subir respaldo a Drive (última versión Drive: `Codigo_gs_Santa_Sofia_v1.8b-20260915-195734.gs`)
    - Crear versión pública sin tokens (`Codigo-public.gs`)
 2. **Decidir qué hacer con `fix_adminLookup_placas.txt`** — commitear como `docs/RECETA-FIX-ADMIN-LOOKUP.md` o eliminar.
-3. **Renumerar secciones del form público** — hueco `7 → 9` por remoción de sección 8 (commit 98f3d38). 3 opciones en `references/section-8-numbering-gap.md`.
+3. **Renumerar secciones del form público** — hueco `7 → 9` por remoción de sección 8 (commit 98f3d38). 3 opciones evaluadas (renumerar / placeholder / aceptar).
 4. **Wireframe de admin** (`wireframe-admin-2000.html`) — commitear como `docs/wireframe-admin-v1.8.html` o eliminar.
 5. **Apto 2000** — limpiar cuando ya no se necesite para pruebas.
 
-###Pendientes identificados en esta sesión
+## 16-Sep-2026 — Cierre de pendientes viejos (docs + limpieza)
 
-1. **Decidir qué hacer con `apps-script/Codigo.gs`** — opciones:
-   - Mantener solo local (status quo)
-   - Subir respaldo a Drive
-   - Crear versión pública sin tokens (`Codigo-public.gs`)
-2. **Decidir qué hacer con `fix_adminLookup_placas.txt`** — commitear como doc o eliminar.
-3. **Renumerar secciones del form público** — hueco `7 → 9` por remoción de sección 8 (commit 98f3d38). 3 opciones en `references/section-8-numbering-gap.md`. Pendiente desde 15-Sep-2026.
-4. **Verificación final por el operador** — confirmar en su navegador (no el sandbox del agente) que Editar/Admin/Vigilantes funcionan end-to-end con la nueva URL `/dev`.
+### Cambios aplicados
+
+**FASE 1 — Limpieza de artefactos locales** (commit `d7c6853`)
+- `fix_adminLookup_placas.txt` (raíz, 2.2KB) → promovido a `docs/RECETA-FIX-ADMIN-LOOKUP.md` (4.2KB) con formato markdown, contexto, causa raíz, diagnóstico y fix paso a paso. Respaldo en Drive `19Hmw1ZpVO9ibuGjVPmb5mAwoJVil8cz0`.
+- `wireframe-admin-2000.html` (raíz, 8KB) → copiado a `docs/wireframe-admin-v18.html` (mismo md5 que el de Drive). Es el wireframe aprobado del rediseño admin v1.8.
+- Eliminados locales (todos respaldados en Drive carpeta `1JGu7x5MmEG81q427y_K-2xmPGmuaRLAq`):
+  - `santa-sofia-bundle-20260915-181018.bundle` (1.1MB)
+  - `santa-sofia-final-bundle-20260915-203004.bundle` (1.1MB)
+  - `santa-sofia-final-src-20260915-203004.tar.gz` (980KB)
+- Bundle de seguridad previo: `/root/backups/santa-sofia/pre-cierre-pendientes-20260916-180601.bundle`.
+
+**FASE 2 — Actualización de documentación desactualizada** (commit `22930a1`)
+- `README.md`: sección "Deploy v1.6" → "Deploy v1.8b" con mención de endpoints actualizados.
+- `docs/GUIA-PROYECTO-SANTA-SOFIA.md`:
+  - § 4 (Sheets): Registros 143→191 cols; estructura hoja Entregas con tipos v1.8b.
+  - § 9 (Portal público): numeración actualizada a 4 veh/mot/masc; nota explícita sobre hueco 7→9 y decisión de NO renumerar.
+  - § 11 (Apps Script): URL activa `/exec` (v1.5 Vers. 8) → `/dev` (v1.8b Vers. 14) + nota migración `/exec`→`/dev`.
+  - § 18 (Recursos): Backend URL/Versión/archivo origen actualizados; Sheet 143→191; agregado TEST-2000 como apto permanente.
+
+### Decisiones tomadas
+
+**FASE 3 — `apps-script/Codigo.gs`: status quo confirmado**
+- Se mantiene **solo local** (NO se commitea al repo público por seguridad, contiene `ADMIN_TOKEN`).
+- Respaldo en Drive: `Codigo_gs_Santa_Sofia_v1.8b-FINAL-20260915-203100.gs` (md5 `5c0e6666ec331d5468fe6f14d62d7fe2`).
+- Patrón de trabajo futuro: editar local → backup con timestamp → subir a Drive → operador descarga → "Nueva versión" en Apps Script (preserva URL).
+
+**FASE 5 — TEST-2000 confirmado como permanente**
+- Apto 2000 (`numForm=TEST-2000`, titular "YURY APTO DE PRUEBAS") queda como **apto de pruebas permanente**.
+- Usar para TODAS las pruebas destructivas de admin/llaveros/tags — NUNCA afecta residentes reales.
+- NO borrar del Sheet. Documentado en GUIA-PROYECTO § 18 (Aptos de prueba).
+
+**FASE 4 — Hueco de numeración 7→9: NO se modifica**
+- Por instrucción del operador, se acepta el gap tal cual sin renumerar, agregar placeholder ni leyenda visible al residente.
+- La nota explicativa queda solo en GUIA-PROYECTO § 9 (documentación interna).
+- Decisión arquitectónica original (commit 98f3d38, 8-Sep-2026): la sección 8 de llaveros/tags se gestiona desde el panel admin, no desde el form público.
+
+### Pendientes cerrados
+
+- [x] Decisión sobre `apps-script/Codigo.gs` → status quo confirmado (FASE 3).
+- [x] Decisión sobre `fix_adminLookup_placas.txt` → promovido a docs (FASE 1).
+- [x] Wireframe `wireframe-admin-2000.html` → promovido a docs (FASE 1).
+- [x] Documentación desactualizada → README y GUIA-PROYECTO actualizados (FASE 2).
+- [x] Limpieza de artefactos locales → 3 bundles/tarball eliminados (FASE 1).
+- [x] Apto 2000 → confirmado permanente (FASE 5).
+- [x] Hueco de numeración → aceptado con nota en docs (FASE 4 NO modificada).
+
+### Pendiente único que queda vivo
+
+- **Verificación final por el operador en su navegador**: confirmar que Editar/Admin/Vigilantes funcionan end-to-end con la URL `/dev` activa. Sin acción técnica pendiente, solo confirmación visual del operador.
+
+### Nota sobre `references/section-8-numbering-gap.md`
+
+El archivo `references/section-8-numbering-gap.md` mencionado en entradas anteriores de SESIONES.md **NO existe en el repo**. Las opciones que documentaba (renumerar / placeholder / aceptar) se conocían por la skill del proyecto pero nunca se commiteó el reference. Con la decisión de la FASE 4, ya no se necesita crearlo.
