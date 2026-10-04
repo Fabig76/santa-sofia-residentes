@@ -793,3 +793,102 @@ Esto requiere decisión y planificación, por eso no se hizo en esta sesión (el
 
 - **HTML**: https://drive.google.com/file/d/17o2UH-mBs-Bws43jx5fY5cpC17jMtDJ8/view?usp=drivesdk
 - **URL pública**: https://fabig76.github.io/santa-sofia-residentes/manual-residentes.html
+
+---
+
+## §19. Módulo de Agendamiento de Mudanzas (deploy 05-Oct-2026)
+
+**Versión backend**: Apps Script V17 (05-Oct-2026 18:19 COL)
+**Versión frontend**: V2.2 (commit rama `feature/mudanzas`)
+**URL del backend**: misma URL activa (V17 es "Nueva versión", preserva URL)
+
+### 19.1 Concepto
+
+Los residentes pueden reservar el ascensor de mudanzas desde la pestaña "Agendar mudanza" en el formulario principal. Es un módulo completo con:
+
+- Verificación de propietario (mismas 3 firmas que Cerro Azul: SS-XXXX + apto + cc).
+- Calendario de 2 meses con slots disponibles.
+- Confirmación con ID de reserva.
+- Vista de "Mis reservas" para ver y cancelar.
+
+### 19.2 Arquitectura (5 endpoints, 1 Sheet pestaña)
+
+**5 endpoints Apps Script** (4 GET/POST + 1 nuevo GET misReservas):
+
+| Endpoint | Método | Descripción |
+|---|---|---|
+| `?action=verificarPropietario` | GET | Valida SS-XXXX + apto + cc del propietario |
+| `?action=dispMudanzas` | GET | Devuelve slots disponibles por torre (con OPCIÓN B) |
+| `?action=misReservas` | GET | Lista todas las reservas del numForm/apto |
+| `action=reservarMudanza` | POST | Crea una reserva (con LockService) |
+| `action=cancelarMudanza` | POST | Cancela una reserva (24h antes mínimo) |
+
+**Sheet nueva pestaña "Mudanzas"** — 19 columnas:
+- ID Reserva, N° Formulario, N° Apartamento, Tipo Mudanza, Torre, Ascensor, Fecha Mudanza, Hora Inicio, Hora Fin, Nombre Propietario, CC Propietario, Celular, Correo, Empresa Mudanza, Placa Vehiculo, Observaciones, Fecha Reserva, Estado, Hash Dedupe.
+
+Se crea **idempotentemente** al primer uso (función `getMudanzasSheet()` en `Codigo.gs`).
+
+### 19.3 Reglas de negocio
+
+| Regla | Valor |
+|---|---|
+| Torres | 4 (Naranja, Amarilla, Verde, Azul) |
+| Pares (comparten ascensor) | Naranja+Amarilla, Verde+Azul |
+| Ascensor habilitado | Solo "A" en cada par (B bloqueado) |
+| Slots L-V | 08:00-10:00, 10:00-12:00, 13:00-15:00, 15:00-17:00 (4 slots de 2h) |
+| Slots Sábado | 08:00-10:00, 10:00-12:00 (2 slots, solo mañana) |
+| Domingo y festivos | NO disponible (mensaje al usuario, sin rechazo automático) |
+| Anticipación mínima | 2 días calendario completos |
+| Cancelación permitida | hasta 24 horas antes |
+| Diligencia autorizada | "Propietario" o "Tenedor / Otro" (NO "Arrendatario", NO se agrega "Inmobiliaria") |
+| Tipo de mudanza | "Salida" (del arrendatario actual) o "Ingreso" (del nuevo arrendatario) |
+| Email admin | santasofia.clubresidencial@gmail.com |
+| Prefijo ID reserva | MD-0001, MD-0002, ... |
+
+### 19.4 OPCIÓN B — Pares de torres (comparten ascensor)
+
+Las 4 torres se agrupan en **2 pares** que comparten ascensor:
+- Par 1: Naranja + Amarilla (mismo ascensor A físico).
+- Par 2: Verde + Azul (mismo ascensor A físico).
+
+**Regla de unicidad:** un slot ocupado en una torre **bloquea el mismo slot en la otra torre del mismo par**. Ejemplo: si Torre Naranja reserva sábado 10:00-12:00, entonces Amarilla NO puede reservar el mismo sábado 10:00-12:00 (mismo ascensor).
+
+**Implementación:** el Sheet `Mudanzas` col E (Torre) sigue guardando la torre individual seleccionada por el residente (trazabilidad: "la reserva la hizo el de la torre Naranja"). El bloqueo se hace por **lógica** del backend, no por columna.
+
+**Helpers OPCIÓN B:**
+- `parDeTorre(torre)` → `'Naranja-Amarilla' | 'Verde-Azul' | null`
+- `torresDelPar(parNombre)` → `['Naranja','Amarilla'] | ['Verde','Azul']`
+
+**Hash de unicidad** se calcula sobre (par, ascensor, fecha, horaInicio) — no sobre (torre individual).
+
+### 19.5 Frontend (4 vistas)
+
+El formulario público tiene una nueva pestaña "🚚 Agendar mudanza" con 4 vistas:
+
+1. **Vista 1 — Login**: pide SS-XXXX + apto + cc del propietario.
+2. **Vista 2 — Formulario**: tipo de mudanza, torre, calendario, slot, datos adicionales.
+3. **Vista 3 — Confirmación**: muestra ID Reserva + botones "Hacer otra" / "Ver mis reservas".
+4. **Vista 4 — Mis reservas**: lista todas las reservas del numForm (Confirmadas + Canceladas), permite cancelar las Confirmadas.
+
+### 19.6 Retry helper (mitigación HTML 500/405)
+
+Descubierto en F7: cuando Apps Script hace MailApp.sendEmail() durante cold start, el POST puede devolver 500/405 aunque los datos SÍ se modifican en Sheet. El frontend incluye un wrapper `safePost(payload)` que:
+
+- POST normal a /dev.
+- Si la respuesta NO es JSON parseable (es HTML), esperar 2s, reintentar 1 vez.
+- Si después del retry sigue HTML, retornar `{ok: true, pendingEmail: true, warning: 'Reserva enviada. Espere confirmación por email en 5 minutos.'}`.
+
+Esto evita mostrar errores falsos al usuario.
+
+### 19.7 Deploys Apps Script (cronología)
+
+| Versión | Fecha | Cambio |
+|---|---|---|
+| V16 | 04-Oct-2026 17:46 | Módulo inicial (verificarPropietario, dispMudanzas, reservarMudanza, cancelarMudanza, getMudanzasSheet idempotente) |
+| V17 | 04-Oct-2026 18:19 | + endpoint misReservas (lista reservas del numForm/apto) |
+
+### 19.8 Referencias
+
+- `docs/spec-mudanzas.md` — spec completa del módulo (590 líneas, OPCIÓN B)
+- `docs/auditoria-f5-mudanzas.md` — auditoría del frontend (F5) con 10 riesgos mitigados
+- `apps-script/Codigo.gs` — constantes MUDANZAS_*, helpers, endpoints (líneas 1186-1831)
