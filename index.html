@@ -38,6 +38,9 @@
     <button type="button" class="mode-tab" data-mode="edit" role="tab">
       ✏️ Editar mi registro
     </button>
+    <button type="button" class="mode-tab" data-mode="mudanzas" role="tab">
+      🚚 Agendar mudanza
+    </button>
   </div>
 </nav>
 
@@ -632,6 +635,153 @@
         para que podamos ayudarte a recuperar tu número.
       </p>
     </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- VISTA: MUDANZAS (Agendar)                       -->
+  <!-- ============================================== -->
+  <div id="view-mudanzas" class="hidden">
+    <style>
+      #mudCalendario { margin: 12px 0; }
+      .mud-mes { margin-bottom: 16px; }
+      .mud-mes h4 { color: var(--azul-osc); margin-bottom: 8px; }
+      .mud-cal-grid { background: #fff; border: 1px solid var(--gris-borde); border-radius: 8px; padding: 8px; }
+      .mud-cal-hdr { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+      .mud-cal-hdr span { text-align: center; font-size: 11px; font-weight: 600; color: var(--gris-med); }
+      .mud-cal-dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+      .mud-cal-dias span { aspect-ratio: 1; }
+      .mud-dia { aspect-ratio: 1; border: 1px solid var(--gris-borde); border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; }
+      .mud-dia:hover:not(:disabled) { background: var(--azul-claro); }
+      .mud-dia-seleccionado { background: var(--azul-osc); color: white; border-color: var(--azul-osc); }
+      .mud-dia-deshabilitado { background: #F0F0F0; color: var(--gris-med); cursor: not-allowed; }
+      .mud-slots-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
+      .mud-slot { padding: 12px; border: 1px solid var(--gris-borde); border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; }
+      .mud-slot-disponible:hover { background: var(--azul-claro); }
+      .mud-slot-ocupado { background: #FFF0F0; color: var(--gris-med); cursor: not-allowed; }
+      .mud-slot-seleccionado { background: var(--azul-osc); color: white; border-color: var(--azul-osc); }
+      .mud-reserva-card { border: 1px solid var(--gris-borde); border-radius: 8px; padding: 14px; margin-bottom: 10px; background: #fff; }
+      .mud-reserva-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--gris-borde); }
+      .mud-reserva-id { font-family: monospace; font-weight: bold; color: var(--azul-osc); font-size: 15px; }
+      .mud-estado-badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+      .mud-estado-confirmada { background: #DCFCE7; color: #166534; }
+      .mud-estado-cancelada { background: #FEE2E2; color: #991B1B; }
+      .mud-estado-completada { background: #E0E7FF; color: #3730A3; }
+      .mud-reserva-detail { font-size: 13px; line-height: 1.6; }
+      .mud-reserva-detail strong { color: var(--azul-osc); }
+      .mud-reserva-actions { margin-top: 10px; text-align: right; }
+      @media (max-width: 600px) { .mud-slots-grid { grid-template-columns: 1fr; } }
+    </style>
+
+    <!-- Vista 1: Login -->
+    <div id="mud-vista-login" class="card">
+      <h3>🚚 Agendar mudanza</h3>
+      <p>Solo el propietario del inmueble o el encargado autorizado pueden reservar el ascensor para mudanza. Las mudanzas deben agendarse con al menos <strong>2 días calendario</strong> de anticipación.</p>
+      <div id="alert-mud-login" class="alert hidden" role="alert"></div>
+      <div class="field" style="margin-bottom:12px;">
+        <label>N° de formulario <span class="req">*</span></label>
+        <input type="text" id="mudNumForm" placeholder="Ej: SS-0042" autocomplete="off">
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label>N° de apartamento <span class="req">*</span></label>
+        <input type="text" id="mudApto" placeholder="Ej: 311" autocomplete="off">
+      </div>
+      <div class="field" style="margin-bottom:18px;">
+        <label>Cédula del propietario <span class="req">*</span></label>
+        <input type="text" id="mudCcProp" placeholder="Solo números, sin puntos ni guiones" inputmode="numeric" autocomplete="off">
+        <small style="color:var(--gris-med);">La cédula debe coincidir con la registrada en el formulario de residentes.</small>
+      </div>
+      <button type="button" class="btn btn-primary btn-block" id="btnMudVerificar">🔍 Verificar</button>
+      <div style="text-align:center; margin-top:16px; font-size:13px; color:var(--gris-med);">
+        ¿Ya tienes reserva? <a href="#" id="linkMisReservas">Ver mis reservas</a>
+      </div>
+    </div>
+
+    <!-- Vista 2: Form -->
+    <div id="mud-vista-form" class="card hidden">
+      <h3>🚚 Agendar mudanza</h3>
+      <div id="alert-mud-form" class="alert hidden" role="alert"></div>
+
+      <div class="section">
+        <div class="section-head"><span><span class="section-num">1</span>Tipo de autorización</span><span class="arrow">▼</span></div>
+        <div class="section-body">
+          <label class="radio-row"><input type="radio" name="mudTipo" value="Salida"> <strong>Salida</strong> del arrendatario actual</label>
+          <label class="radio-row"><input type="radio" name="mudTipo" value="Ingreso"> <strong>Ingreso</strong> del nuevo arrendatario</label>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><span><span class="section-num">2</span>Torre y ascensor</span><span class="arrow">▼</span></div>
+        <div class="section-body">
+          <div class="row">
+            <div class="field">
+              <label>Torre <span class="req">*</span></label>
+              <select id="mudTorre">
+                <option value="Naranja">Naranja</option>
+                <option value="Amarilla">Amarilla</option>
+                <option value="Verde">Verde</option>
+                <option value="Azul">Azul</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Ascensor</label>
+              <input type="text" value="A (único habilitado)" disabled style="background:var(--gris-claro);">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><span><span class="section-num">3</span>Fecha y horario</span><span class="arrow">▼</span></div>
+        <div class="section-body">
+          <p style="font-size:13px; color:var(--gris-med); margin-top:0;">
+            Domingo y festivos no hay servicio. La vigilancia no permite ingreso en festivos aunque haya reserva.
+          </p>
+          <div id="mudCalendario"></div>
+          <div id="mudSlots"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><span><span class="section-num">4</span>Datos adicionales (opcionales)</span><span class="arrow">▼</span></div>
+        <div class="section-body">
+          <div class="row">
+            <div class="field"><label>Empresa de mudanza</label><input type="text" id="mudEmpresa" placeholder="Ej: Mudanzas XYZ"></div>
+            <div class="field"><label>Placa del vehículo</label><input type="text" id="mudPlaca" placeholder="Ej: ABC123" maxlength="10"></div>
+          </div>
+          <div class="field"><label>Observaciones</label><textarea id="mudObservaciones" rows="2" placeholder="Información adicional"></textarea></div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px; display:flex; gap:10px;">
+        <button type="button" class="btn btn-secondary" id="btnMudVolver">← Volver al inicio</button>
+        <button type="button" class="btn btn-secondary" id="btnMudMisReservas">📋 Ver mis reservas</button>
+        <button type="button" class="btn btn-primary btn-block" id="btnMudReservar" disabled>📅 Confirmar reserva</button>
+      </div>
+    </div>
+
+    <!-- Vista 3: Confirmación -->
+    <div id="mud-vista-ok" class="card hidden">
+      <h3>✅ Reserva confirmada</h3>
+      <p>ID Reserva: <strong id="mudOkId"></strong></p>
+      <div id="mudOkDetalle"></div>
+      <div id="mudOkAlerta" class="alert alert-info hidden"></div>
+      <div style="margin-top:20px; display:flex; gap:10px;">
+        <button type="button" class="btn btn-primary btn-block" id="btnMudOtra">Hacer otra reserva</button>
+        <button type="button" class="btn btn-secondary btn-block" id="btnMudVerMisReservas">📋 Ver mis reservas</button>
+      </div>
+    </div>
+
+    <!-- Vista 4: Mis reservas (FUNCIONAL) -->
+    <div id="mud-vista-mis" class="card hidden">
+      <h3>📋 Mis reservas</h3>
+      <p id="mudMisSubtitulo" style="color:var(--gris-med);"></p>
+      <div id="alert-mud-mis" class="alert hidden" role="alert"></div>
+      <div id="mudMisLista"></div>
+      <div style="margin-top:20px;">
+        <button type="button" class="btn btn-secondary" id="btnMudVolverMis">← Volver al inicio</button>
+      </div>
+    </div>
+
   </div>
 
 </main>

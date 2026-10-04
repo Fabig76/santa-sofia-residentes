@@ -485,3 +485,81 @@ Midiendo el CSS del frontend en PRODUCCIÓN (https://fabig76.github.io/santa-sof
 ### Pendiente
 
 - (ninguno — operador confirmó en WhatsApp "ya revise el formato todo quedo ok")
+
+---
+
+## 04-Oct-2026 — Módulo de Agendamiento de Mudanzas (V16 + V17)
+
+### Cambio solicitado
+
+El operador pidió un módulo completo de agendamiento de mudanzas, similar al de Cerro Azul pero adaptado a Santa Sofía. Los residentes deben poder reservar el ascensor de mudanzas desde una nueva pestaña en el formulario principal.
+
+### Decisiones de diseño
+
+**OPCIÓN B confirmada** (operador explícito): Las 4 torres (Naranja, Amarilla, Verde, Azul) se agrupan en **2 pares** que comparten ascensor:
+- Par 1: Naranja + Amarilla (mismo ascensor A físico).
+- Par 2: Verde + Azul (mismo ascensor A físico).
+
+El Sheet `Mudanzas` col E (Torre) sigue guardando la torre individual seleccionada por el residente (trazabilidad), pero el bloqueo se hace por **lógica del backend** (`parDeTorre()` + `torresDelPar()`).
+
+**Vista 4 mis-reservas FUNCIONAL** (operador pidió, NO placeholder como Cerro Azul):
+- Lista todas las reservas del numForm/apto (Confirmadas + Canceladas).
+- Permite cancelar Confirmadas con un click.
+- Endpoint backend `?action=misReservas` necesario.
+
+**Sin agregar "Inmobiliaria" como nuevo valor de diligencia** (mantiene 100% compatibilidad con registros existentes y validación del backend de submit).
+
+**Retry helper en frontend** (mitigación HTML 500/405):
+- `safePost(payload, retries=1)`: si la respuesta POST no es JSON parseable, espera 2s y reintenta una vez.
+- `fetchJson(url, retries=1)`: similar para GET.
+- Solución al problema encontrado en F7 (MailApp.sendEmail() durante cold start devuelve HTML en lugar de JSON).
+
+### Fases ejecutadas (8 fases con OK del operador)
+
+- **F0** — Backup completo (Codigo.gs + Sheet Registros → xlsx + CSVs + MANIFEST, local + Drive `Santa Sofia/BACKUP-santa-sofia-pre-mudanzas-20261005_003208/`).
+- **F1** — Spec aprobado (OPCIÓN B). Archivo: `docs/spec-mudanzas.md` (590 líneas).
+- **F3** — Append código al Codigo.gs (V16, 1186 líneas):
+  - Constantes MUDANZAS_*, helpers parDeTorre/torresDelPar, getMudanzasSheet idempotente, normalizarHora, hashReserva, etc.
+  - Endpoints: verificarPropietarioMudanza, dispMudanzas, reservarMudanza, cancelarMudanza.
+  - 4 handlers en doGet/doPost.
+  - 4 emails templates.
+- **F6** — Deploy V16 manual del operador (04-Oct-2026 17:46).
+- **F7** — Pruebas E2E con curl:
+  - GET endpoints (nextId, lookup, lookupMatApto, lookupMatParq, adminLookup, vigilantesLookup): todos OK.
+  - Endpoints nuevos: verificarPropietario (OK + casos negativos), dispMudanzas (4 slots L-V, OPCIÓN B confirmada: Naranja=Amarilla, Verde=Azul), reservarMudanza (crea MD-0001 y MD-0002), cancelarMudanza (cambia estado a Cancelada).
+  - **HALLAZGO IMPORTANTE:** el POST devuelve HTML 500/405 (no JSON) por MailApp.sendEmail() durante cold start. Los datos SÍ se modifican correctamente en Sheet. La respuesta JSON simplemente se pierde por timeout del gateway.
+- **F3'** — Append endpoint misReservas al Codigo.gs (V17, 1831 líneas):
+  - +57 líneas (handler en doGet + función misReservas).
+  - md5: edc2be382708180ff26af9c148307b29.
+- **F6'** — Deploy V17 manual del operador (04-Oct-2026 18:19).
+- **F7'** — Pruebas con curl:
+  - SS-0001 / 1122 / 36178031 (Yazmin Rocha): devuelve 1 reserva (MD-0001 Cancelada).
+  - SS-0002 / 262 / 1094923637 (YURY): devuelve 1 reserva (MD-0002 Cancelada).
+  - CC incorrecta: falla con mensaje específico.
+  - numForm inexistente: falla con mensaje específico.
+
+### F5 — Frontend
+
+Cambios en `index.html` (+150 líneas, 0 quitadas):
+- 1 botón nuevo en `mode-switcher` (línea 41): `<button data-mode="mudanzas">🚚 Agendar mudanza</button>`.
+- Bloque nuevo `<div id="view-mudanzas" class="hidden">` con CSS inline (clases `mud-*`) y 4 vistas (login, form, ok, mis).
+
+Cambios en `js/app.js` (+443 líneas, 0 quitadas):
+- `setMode()` extendido: +1 línea para mostrar/ocultar `#view-mudanzas`, +1 bloque para reset de M.
+- Módulo `M` encapsulado (~390 líneas) con 13 métodos: reset, bindEvents, showVista, verificar, verificarYMostrarMisReservas, renderCalendario, renderMes, selectFecha, renderSlots, checkFormCompleto, submitReserva, showConfirmacion, showMisReservas, renderMisReservas, cancelarReserva, formatFecha, formatFechaLarga.
+- Retry helpers: `safePost()`, `fetchJson()`, `enc()`.
+
+Sintaxis `node --check js/app.js`: OK.
+
+### Archivos del módulo
+
+- `apps-script/Codigo.gs` (V17, 1831 líneas, 82 KB)
+- `index.html` (935 líneas, 46 KB)
+- `js/app.js` (1320 líneas, 52 KB)
+- `docs/spec-mudanzas.md` (590 líneas) — spec completa
+- `docs/auditoria-f5-mudanzas.md` (~540 líneas) — auditoría frontend
+- `docs/sesion-mudanzas.md` (este archivo)
+
+### Pendiente (F8)
+
+- **F8** — Push a GitHub Pages: crear rama `feature/mudanzas`, commitear cambios, push, esperar OK del operador para mergear a main.

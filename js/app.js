@@ -111,12 +111,15 @@ function setMode(mode) {
   $$('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
   $('#view-create').classList.toggle('hidden', mode !== 'create');
   $('#view-edit').classList.toggle('hidden', mode !== 'edit');
+  $('#view-mudanzas').classList.toggle('hidden', mode !== 'mudanzas');
   // Limpiar avisos al cambiar modo
   hideAlert('alert-edit');
   if (mode === 'create') {
     resetForm();
     // Sección 1 (encabezado) abierta por defecto
     $$('.section').forEach((s, i) => s.classList.toggle('collapsed', i !== 0 && i !== 1));
+  } else if (mode === 'mudanzas') {
+    M.reset();
   }
 }
 $$('.mode-tab').forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
@@ -874,4 +877,444 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!APPS_SCRIPT_URL) {
     showAlert('alert-create', '<strong>⚠️ Aviso:</strong> El formulario aún no está conectado al servidor. La administración debe desplegar el Apps Script y pegar la URL en <code>js/app.js</code> (constante <code>APPS_SCRIPT_URL</code>). Mientras tanto, los envíos no funcionarán.', 'err');
   }
+});
+
+// ============================================================
+// MÓDULO M — Agendamiento de Mudanzas (Santa Sofía)
+// Backend: 5 endpoints Apps Script
+//   GET  ?action=verificarPropietario
+//   GET  ?action=dispMudanzas
+//   GET  ?action=misReservas
+//   POST action=reservarMudanza
+//   POST action=cancelarMudanza
+// ============================================================
+const M = {
+  state: {
+    numForm: '',
+    apto: '',
+    ccProp: '',
+    propietario: null,
+    torre: 'Naranja',
+    fecha: null,
+    horaInicio: null,
+    horaFin: null,
+    lastReserva: null,
+    reservasCache: [],
+  },
+
+  reset() {
+    this.state = { numForm: '', apto: '', ccProp: '', propietario: null, torre: 'Naranja', fecha: null, horaInicio: null, horaFin: null, lastReserva: null, reservasCache: [] };
+    $('#mudNumForm').value = '';
+    $('#mudApto').value = '';
+    $('#mudCcProp').value = '';
+    $('#mudTorre').value = 'Naranja';
+    $('#mudEmpresa').value = '';
+    $('#mudPlaca').value = '';
+    $('#mudObservaciones').value = '';
+    $$('input[name="mudTipo"]').forEach(r => r.checked = false);
+    $('#btnMudReservar').disabled = true;
+    $('#mudSlots').innerHTML = '';
+    hideAlert('alert-mud-login');
+    hideAlert('alert-mud-form');
+    hideAlert('alert-mud-mis');
+    this.showVista('login');
+  },
+
+  bindEvents() {
+    $('#btnMudVerificar').addEventListener('click', () => this.verificar());
+    $('#btnMudVolver').addEventListener('click', () => this.reset());
+    $('#btnMudReservar').addEventListener('click', () => this.submitReserva());
+    $('#btnMudOtra').addEventListener('click', () => this.reset());
+    $('#btnMudVerMisReservas').addEventListener('click', () => this.showMisReservas());
+    $('#btnMudMisReservas').addEventListener('click', () => this.showMisReservas());
+    $('#btnMudVolverMis').addEventListener('click', () => this.reset());
+    $('#linkMisReservas').addEventListener('click', (e) => {
+      e.preventDefault();
+      this.verificarYMostrarMisReservas();
+    });
+    $('#mudTorre').addEventListener('change', () => {
+      this.state.torre = $('#mudTorre').value;
+      this.renderCalendario();
+      $('#mudSlots').innerHTML = '';
+      this.state.fecha = null;
+      this.state.horaInicio = null;
+      this.state.horaFin = null;
+      $('#btnMudReservar').disabled = true;
+    });
+    $$('input[name="mudTipo"]').forEach(r => {
+      r.addEventListener('change', () => this.checkFormCompleto());
+    });
+  },
+
+  showVista(v) {
+    $('#mud-vista-login').classList.toggle('hidden', v !== 'login');
+    $('#mud-vista-form').classList.toggle('hidden', v !== 'form');
+    $('#mud-vista-ok').classList.toggle('hidden', v !== 'ok');
+    $('#mud-vista-mis').classList.toggle('hidden', v !== 'mis');
+  },
+
+  async verificar() {
+    hideAlert('alert-mud-login');
+    const numForm = $('#mudNumForm').value.trim();
+    const apto = $('#mudApto').value.trim();
+    const ccProp = $('#mudCcProp').value.replace(/[^0-9]/g, '').trim();
+    if (!numForm) { showAlert('alert-mud-login', 'Ingresa tu N° de formulario.', 'err'); return; }
+    if (!apto) { showAlert('alert-mud-login', 'Ingresa el N° de apartamento.', 'err'); return; }
+    if (!ccProp) { showAlert('alert-mud-login', 'Ingresa la cédula del propietario (solo números).', 'err'); return; }
+    if (!APPS_SCRIPT_URL) {
+      showAlert('alert-mud-login', 'El formulario no está conectado al servidor.', 'err');
+      return;
+    }
+    const btn = $('#btnMudVerificar');
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = 'Verificando...';
+    try {
+      const url = APPS_SCRIPT_URL + '?action=verificarPropietario&numForm=' + enc(numForm) + '&apto=' + enc(apto) + '&ccProp=' + enc(ccProp);
+      const data = await fetchJson(url);
+      if (!data.ok) {
+        showAlert('alert-mud-login', data.error || 'No se pudo verificar.', 'err');
+        return;
+      }
+      this.state.numForm = numForm;
+      this.state.apto = apto;
+      this.state.ccProp = ccProp;
+      this.state.propietario = data;
+      this.showVista('form');
+      this.renderCalendario();
+    } catch (e) {
+      showAlert('alert-mud-login', 'Error de red: ' + e.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
+    }
+  },
+
+  // Verifica y luego salta directo a "Mis reservas" (desde link en login)
+  async verificarYMostrarMisReservas() {
+    hideAlert('alert-mud-login');
+    const numForm = $('#mudNumForm').value.trim();
+    const apto = $('#mudApto').value.trim();
+    const ccProp = $('#mudCcProp').value.replace(/[^0-9]/g, '').trim();
+    if (!numForm || !apto || !ccProp) {
+      showAlert('alert-mud-login', 'Completa los 3 campos para ver tus reservas.', 'err');
+      return;
+    }
+    this.state.numForm = numForm;
+    this.state.apto = apto;
+    this.state.ccProp = ccProp;
+    this.showMisReservas();
+  },
+
+  renderCalendario() {
+    const cont = $('#mudCalendario');
+    const hoy = new Date();
+    const minFecha = new Date(hoy);
+    minFecha.setDate(minFecha.getDate() + 2);
+    minFecha.setHours(0, 0, 0, 0);
+
+    let html = '';
+    for (let m = 0; m < 2; m++) {
+      const ref = new Date(hoy.getFullYear(), hoy.getMonth() + m, 1);
+      html += this.renderMes(ref, minFecha);
+    }
+    cont.innerHTML = html;
+
+    $$('#mudCalendario .mud-dia').forEach(el => {
+      el.addEventListener('click', () => {
+        if (el.classList.contains('mud-dia-deshabilitado')) return;
+        const f = el.dataset.fecha;
+        $$('#mudCalendario .mud-dia').forEach(d => d.classList.remove('mud-dia-seleccionado'));
+        el.classList.add('mud-dia-seleccionado');
+        this.selectFecha(f);
+      });
+    });
+  },
+
+  renderMes(refDate, minFecha) {
+    const year = refDate.getFullYear();
+    const month = refDate.getMonth();
+    const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const dowNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const primerDia = new Date(year, month, 1);
+    const ultimoDia = new Date(year, month + 1, 0);
+    let html = '<div class="mud-mes"><h4>' + monthNames[month] + ' ' + year + '</h4><div class="mud-cal-grid"><div class="mud-cal-hdr">' + dowNames.map(d => '<span>' + d + '</span>').join('') + '</div><div class="mud-cal-dias">';
+    const startDow = primerDia.getDay();
+    for (let i = 0; i < startDow; i++) html += '<span></span>';
+    for (let d = 1; d <= ultimoDia.getDate(); d++) {
+      const fecha = new Date(year, month, d);
+      const fechaStr = this.formatFecha(fecha);
+      const dow = fecha.getDay();
+      const esDomingo = dow === 0;
+      const muyPronto = fecha < minFecha;
+      const deshabilitado = esDomingo || muyPronto;
+      const selClass = (this.state.fecha === fechaStr) ? ' mud-dia-seleccionado' : '';
+      const disClass = deshabilitado ? ' mud-dia-deshabilitado' : '';
+      const title = esDomingo ? 'Domingo: no hay servicio' : muyPronto ? 'Menos de 48h de anticipación' : 'Click para ver horarios';
+      html += '<button type="button" class="mud-dia' + disClass + selClass + '" data-fecha="' + fechaStr + '" title="' + title + '" ' + (deshabilitado ? 'disabled' : '') + '>' + d + '</button>';
+    }
+    html += '</div></div></div>';
+    return html;
+  },
+
+  async selectFecha(fecha) {
+    this.state.fecha = fecha;
+    this.state.horaInicio = null;
+    this.state.horaFin = null;
+    $('#btnMudReservar').disabled = true;
+    $('#mudSlots').innerHTML = '<p style="color:var(--gris-med);">Cargando horarios...</p>';
+    try {
+      const url = APPS_SCRIPT_URL + '?action=dispMudanzas&torre=' + enc(this.state.torre) + '&ascensor=A&desde=' + enc(fecha) + '&hasta=' + enc(fecha);
+      const data = await fetchJson(url);
+      if (!data.ok) {
+        $('#mudSlots').innerHTML = '<p style="color:var(--err);">' + (data.error || 'Error al cargar horarios') + '</p>';
+        return;
+      }
+      this.renderSlots(data.slots);
+    } catch (e) {
+      $('#mudSlots').innerHTML = '<p style="color:var(--err);">Error de red: ' + e.message + '</p>';
+    }
+  },
+
+  renderSlots(slotsDelDia) {
+    if (!slotsDelDia.length) {
+      $('#mudSlots').innerHTML = '<p style="color:var(--gris-med);">No hay horarios disponibles este día (ej: domingo).</p>';
+      return;
+    }
+    let html = '<div class="mud-slots-grid">';
+    for (const s of slotsDelDia) {
+      const cls = s.disponible ? 'mud-slot-disponible' : 'mud-slot-ocupado';
+      const sel = (s.horaInicio === this.state.horaInicio) ? ' mud-slot-seleccionado' : '';
+      const label = s.reservadoPor ? s.horaInicio + '-' + s.horaFin + '<br><small>(' + s.reservadoPor + ')</small>' : s.horaInicio + ' - ' + s.horaFin;
+      html += '<button type="button" class="mud-slot ' + cls + sel + '" data-hora="' + s.horaInicio + '" data-fin="' + s.horaFin + '" ' + (!s.disponible ? 'disabled' : '') + '>' + label + '</button>';
+    }
+    html += '</div>';
+    if (this.state.fecha) {
+      html += '<p style="font-size:12px; color:var(--gris-med); margin-top:8px;">' + this.formatFechaLarga(this.state.fecha) + '</p>';
+    }
+    $('#mudSlots').innerHTML = html;
+    $$('#mudSlots .mud-slot-disponible').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.state.horaInicio = btn.dataset.hora;
+        this.state.horaFin = btn.dataset.fin;
+        $$('#mudSlots .mud-slot').forEach(b => b.classList.remove('mud-slot-seleccionado'));
+        btn.classList.add('mud-slot-seleccionado');
+        this.checkFormCompleto();
+      });
+    });
+  },
+
+  checkFormCompleto() {
+    const tipo = $$('input[name="mudTipo"]').find(r => r.checked);
+    const ok = !!tipo && !!this.state.torre && !!this.state.fecha && !!this.state.horaInicio && !!this.state.horaFin;
+    $('#btnMudReservar').disabled = !ok;
+  },
+
+  async submitReserva() {
+    hideAlert('alert-mud-form');
+    const tipoEl = $$('input[name="mudTipo"]').find(r => r.checked);
+    if (!tipoEl) { showAlert('alert-mud-form', 'Selecciona el tipo de autorización.', 'err'); return; }
+    if (!this.state.fecha || !this.state.horaInicio) { showAlert('alert-mud-form', 'Selecciona un día y un horario.', 'err'); return; }
+
+    const payload = {
+      action: 'reservarMudanza',
+      numForm: this.state.numForm,
+      apto: this.state.apto,
+      ccProp: this.state.ccProp,
+      tipoMudanza: tipoEl.value,
+      torre: this.state.torre,
+      fecha: this.state.fecha,
+      horaInicio: this.state.horaInicio,
+      horaFin: this.state.horaFin,
+      empresa: $('#mudEmpresa').value.trim(),
+      placa: $('#mudPlaca').value.trim().toUpperCase(),
+      observaciones: $('#mudObservaciones').value.trim(),
+    };
+
+    $('#btnMudReservar').disabled = true;
+    const oldText = $('#btnMudReservar').textContent;
+    $('#btnMudReservar').textContent = 'Reservando...';
+
+    try {
+      const data = await safePost(payload);
+      if (!data.ok) {
+        showAlert('alert-mud-form', data.error || 'No se pudo reservar.', 'err');
+        this.checkFormCompleto();
+        return;
+      }
+      if (data.pendingEmail) {
+        showAlert('alert-mud-ok-alerta', data.warning, 'info');
+        $('#mudOkAlerta').classList.remove('hidden');
+      } else {
+        $('#mudOkAlerta').classList.add('hidden');
+      }
+      this.state.lastReserva = data;
+      this.showConfirmacion(data);
+    } catch (e) {
+      showAlert('alert-mud-form', 'Error de red: ' + e.message, 'err');
+      this.checkFormCompleto();
+    } finally {
+      $('#btnMudReservar').textContent = oldText;
+      this.checkFormCompleto();
+    }
+  },
+
+  showConfirmacion(data) {
+    $('#mudOkId').textContent = data.idReserva;
+    const fecha = this.formatFechaLarga(data.fecha);
+    let detalle = '<strong>Fecha:</strong> ' + fecha + '<br>' +
+                  '<strong>Horario:</strong> ' + data.horaInicio + ' a ' + data.horaFin + '<br>' +
+                  '<strong>Torre:</strong> ' + data.torre + ', Ascensor A';
+    if (data.par) detalle += ' (par ' + data.par + ')';
+    $('#mudOkDetalle').innerHTML = detalle;
+    this.showVista('ok');
+  },
+
+  async showMisReservas() {
+    if (!this.state.numForm || !this.state.apto || !this.state.ccProp) {
+      showAlert('alert-mud-mis', 'Faltan datos del propietario. Vuelve a verificar.', 'err');
+      return;
+    }
+    hideAlert('alert-mud-mis');
+    $('#mudMisLista').innerHTML = '<p style="color:var(--gris-med);">Cargando tus reservas...</p>';
+    this.showVista('mis');
+    try {
+      const url = APPS_SCRIPT_URL + '?action=misReservas&numForm=' + enc(this.state.numForm) + '&apto=' + enc(this.state.apto) + '&ccProp=' + enc(this.state.ccProp);
+      const data = await fetchJson(url);
+      if (!data.ok) {
+        showAlert('alert-mud-mis', data.error || 'No se pudieron cargar tus reservas.', 'err');
+        $('#mudMisLista').innerHTML = '';
+        return;
+      }
+      this.state.propietario = data.propietario;
+      this.state.reservasCache = data.reservas || [];
+      $('#mudMisSubtitulo').textContent = 'Apartamento ' + data.propietario.apto + ' · ' + data.propietario.nombreProp;
+      this.renderMisReservas(data.reservas || []);
+    } catch (e) {
+      showAlert('alert-mud-mis', 'Error de red: ' + e.message, 'err');
+      $('#mudMisLista').innerHTML = '';
+    }
+  },
+
+  renderMisReservas(reservas) {
+    if (!reservas.length) {
+      $('#mudMisLista').innerHTML = '<div style="padding:20px; text-align:center; color:var(--gris-med);">No tienes reservas registradas.</div>';
+      return;
+    }
+    let html = '';
+    reservas.forEach(r => {
+      const badgeClass = r.estado === 'Confirmada' ? 'mud-estado-confirmada' : r.estado === 'Cancelada' ? 'mud-estado-cancelada' : 'mud-estado-completada';
+      const cancelable = r.estado === 'Confirmada';
+      html += '<div class="mud-reserva-card">' +
+        '<div class="mud-reserva-header">' +
+          '<div class="mud-reserva-id">' + r.id + '</div>' +
+          '<div class="mud-estado-badge ' + badgeClass + '">' + r.estado + '</div>' +
+        '</div>' +
+        '<div class="mud-reserva-detail">' +
+          '<strong>Fecha:</strong> ' + this.formatFechaLarga(r.fecha) + '<br>' +
+          '<strong>Horario:</strong> ' + r.horaInicio + ' - ' + r.horaFin + '<br>' +
+          '<strong>Tipo:</strong> ' + r.tipoMudanza + '<br>' +
+          '<strong>Torre:</strong> ' + r.torre + ', Ascensor ' + r.ascensor + '<br>' +
+          (r.empresa ? '<strong>Empresa:</strong> ' + r.empresa + '<br>' : '') +
+          (r.placa ? '<strong>Placa:</strong> ' + r.placa + '<br>' : '') +
+          (r.observaciones ? '<strong>Obs:</strong> ' + r.observaciones : '') +
+        '</div>' +
+        (cancelable ? '<div class="mud-reserva-actions"><button class="btn btn-secondary" data-id="' + r.id + '">✕ Cancelar reserva</button></div>' : '') +
+      '</div>';
+    });
+    $('#mudMisLista').innerHTML = html;
+
+    // Bind cancelar buttons
+    $$('#mudMisLista .btn[data-id]').forEach(btn => {
+      btn.addEventListener('click', () => this.cancelarReserva(btn.dataset.id));
+    });
+  },
+
+  async cancelarReserva(idReserva) {
+    if (!confirm('¿Confirmas que quieres cancelar la reserva ' + idReserva + '?\n\nNo se puede cancelar con menos de 24 horas de anticipación.')) return;
+    const payload = {
+      action: 'cancelarMudanza',
+      numForm: this.state.numForm,
+      apto: this.state.apto,
+      ccProp: this.state.ccProp,
+      idReserva: idReserva,
+    };
+    try {
+      const data = await safePost(payload);
+      if (!data.ok) {
+        showAlert('alert-mud-mis', data.error || 'No se pudo cancelar.', 'err');
+        return;
+      }
+      if (data.pendingEmail) {
+        showAlert('alert-mud-mis', data.warning || 'Reserva cancelada. Espere confirmación por email.', 'info');
+      } else {
+        showAlert('alert-mud-mis', 'Reserva cancelada correctamente.', 'ok');
+      }
+      // Recargar lista
+      await this.showMisReservas();
+    } catch (e) {
+      showAlert('alert-mud-mis', 'Error de red: ' + e.message, 'err');
+    }
+  },
+
+  formatFecha(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  },
+
+  formatFechaLarga(fechaStr) {
+    const dowNames = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const [y, m, d] = fechaStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return dowNames[dt.getDay()] + ' ' + d + ' de ' + ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][dt.getMonth()] + ' de ' + y;
+  },
+};
+
+// Retry helpers para POST/GET (mitigación HTML 500/405 de Apps Script cold start MailApp)
+async function safePost(payload, retries) {
+  retries = (typeof retries === 'number') ? retries : 1;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const resp = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify(payload),
+      });
+      const text = await resp.text();
+      try { return JSON.parse(text); }
+      catch (e) {
+        if (i < retries) { await new Promise(r => setTimeout(r, 2000)); continue; }
+        return { ok: true, pendingEmail: true, warning: 'Reserva enviada. Espere confirmación por email en 5 minutos. Si no llega, contacte a la administración.' };
+      }
+    } catch (e) {
+      if (i < retries) { await new Promise(r => setTimeout(r, 2000)); continue; }
+      throw e;
+    }
+  }
+}
+
+async function fetchJson(url, retries) {
+  retries = (typeof retries === 'number') ? retries : 1;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const r = await fetch(url);
+      const text = await r.text();
+      try { return JSON.parse(text); }
+      catch (e) {
+        if (i < retries) { await new Promise(r => setTimeout(r, 2000)); continue; }
+        return { ok: false, error: 'El servidor respondió con HTML en lugar de JSON. Intente nuevamente en 1 minuto.' };
+      }
+    } catch (e) {
+      throw e;
+    }
+  }
+}
+
+function enc(s) { return encodeURIComponent(s); }
+
+// Init módulo M cuando carga el DOM
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof M !== 'undefined' && M.bindEvents) M.bindEvents();
 });
