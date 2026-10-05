@@ -978,3 +978,80 @@ Notas:
 - `apps-script/Codigo.gs` — función adminListarReservasMudanzen (líneas 1849-1928)
 - `admin.html` — tabs navegación + filtros mudanzas
 - `js/admin.js` — funciones navResidentes/navMudanzas/cargarMudanzasList/renderMudanzasTable
+
+---
+
+## §21. Vigilantes v2.0 — Sección Mudanzas + Check-in (deploy 05-Oct-2026)
+
+**Versión backend**: Apps Script V20 (05-Oct-2026 20:01 COL)
+**Versión frontend**: V2.0 (commit `59934d8` en main)
+**URL del backend**: misma URL activa (V20 es "Nueva versión", preserva URL)
+
+### 21.1 Concepto
+
+Refactor del portal de vigilancia para incluir una sección de mudanzas idéntica al patrón Cerro Azul: lista de reservas + check-in (Sí/No realizada) por el vigilante. Patrón Cerro Azul vigilantes replicado.
+
+El vigilante ahora puede:
+1. Buscar residente por apartamento (sin cambios, sigue funcionando).
+2. Ver lista de mudanzas programadas (por fecha o todas las recientes).
+3. Marcar cada mudanza como Sí/No realizada, con su nombre como evidencia.
+
+### 21.2 Arquitectura (2 endpoints + cambio estructural Sheet)
+
+**2 endpoints Apps Script (V20)**:
+
+| Endpoint | Método | Auth | Descripción |
+|---|---|---|---|
+| `?action=vigilanteVerMudanzas` | GET | VIGILANTES_TOKEN | Lista mudanzas por fecha (opcional) |
+| `action=vigilanteCheckMudanza` | POST | VIGILANTES_TOKEN | Registra check-in del vigilante (Sí/No) |
+
+**Cambio Sheet "Mudanzas" 19 → 22 columnas:**
+- Col 20 (T): Realizada (Sí/No)
+- Col 21 (U): Fecha Check (yyyy-MM-dd HH:mm:ss)
+- Col 22 (V): Nombre del vigilante
+
+La expansión se hace automáticamente vía `getMudanzasSheet()` al primer hit (idempotente, no toca datos existentes).
+
+### 21.3 Decisiones de diseño
+
+| Decisión | Razón |
+|---|---|
+| **Sección integrada** (NO tabs) | Operador eligió simple |
+| **Banner actualizado** | "consultar residentes Y registrar check-in" |
+| **Auto-expansión del Sheet** | Operador no quiere tocar el Sheet directamente |
+| **LockService al write** | Previene race conditions entre vigilantes |
+| **Filtro fecha opcional** | "Ver todas" muestra Confirmadas futuras + Canceladas recientes (últimos 30 días) |
+| **Reusa `getMudanzasSheet`, `findReservaById`** | V18 ya los tenía |
+| **Append a Codigo.gs** | No tocar código existente |
+| **Retry `safePost()` y `apiGet()`** | Mitigar HTML 500/405 de Apps Script cold start MailApp |
+
+### 21.4 Pruebas E2E verificadas
+
+- Carga vigilantes.html → banner actualizado + sección mudanzas visible
+- Click "Ver todas" → 3 cards (MD-0001/2/3) renderizadas
+- MD-0001 ya tenía check previo (de F10 prueba) → muestra "Check: Sí por Juan Pérez"
+- Llenar nombre "Vigilante Browser Test" → click "Sí" → POST → Sheet actualizado (T="Sí", U=fecha, V=nombre)
+- Lista se recarga automáticamente después del check-in
+- Buscador residente 1122 sigue funcionando (2 personas, 2 vehículos)
+- index.html (form público) intacto
+
+### 21.5 Deploy Apps Script (cronología)
+
+| Versión | Fecha | Cambio |
+|---|---|---|
+| V18 | 04-Oct-2026 19:03 | adminListarReservasMudanzen |
+| V19 | 04-Oct-2026 19:55 | vigilanteVerMudanzas + vigilanteCheckMudanza (sin auto-expansión) |
+| V20 | 04-Oct-2026 20:01 | + auto-expansión del Sheet 19 → 22 cols |
+
+### 21.6 Riesgos menores conocidos (no críticos)
+
+- **HTML 500/405 al POST:** Apps Script cold start MailApp puede hacer que la respuesta JSON se pierda. Solución: `safePost()` con retry 1 vez (2s) en frontend. Si el retry falla también, retorna `pendingEmail:true` y muestra advertencia.
+- **Auto-expansión sólo dispara en primer hit:** Si nadie llama a los endpoints de mudanzas, el Sheet no se expande. La V20 garantiza que cualquier llamada (ej. `dispMudanzas`) lo expande.
+- **Vigilante puede escribir nombre libre:** Validación server-side: `trim().substring(0, 100)` para evitar nombres muy largos.
+
+### 21.7 Referencias
+
+- `docs/spec-vigilantes-mudanzas.md` — spec completa del vigilantes v2.0 (350 líneas)
+- `apps-script/Codigo.gs` — funciones vigilanteVerMudanzas + vigilanteCheckMudanza (líneas 1957-2066)
+- `vigilantes.html` — sección "📦 Mudanzas programadas" agregada
+- `js/vigilantes.js` — funciones cargarMudanzas/renderMudanzas/checkIn/apiGet/safePost

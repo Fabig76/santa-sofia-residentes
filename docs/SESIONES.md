@@ -630,3 +630,58 @@ El operador pidió actualizar el panel administrativo para que sea parecido al d
 ### Pendiente (ninguno)
 
 El proyecto está al día con la documentación. Si en el futuro el operador pide Salón Social (similar a Cerro Azul), se haría un F10 similar a F9.
+
+---
+
+## 05-Oct-2026 — Vigilantes v2.0 (sección Mudanzas + check-in, V20)
+
+### Cambio solicitado
+
+El operador pidió actualizar el portal de vigilancia (vigilantes.html) para que tenga la sección de mudanzas como la de Cerro Azul: lista + check-in.
+
+### Decisiones de diseño
+
+**Opción B confirmada** (operador explícito): Igual que Cerro Azul vigilantes — lista + check-in.
+
+**Sección integrada (NO tabs):** el operador eligió simple.
+
+**Auto-expansión del Sheet "Mudanzas" 19 → 22 columnas:** modifiqué `getMudanzasSheet()` para que automáticamente expanda la pestaña con headers T/U/V al primer hit, sin tocar datos existentes. Esto permite que el operador no tenga que tocar el Sheet directamente.
+
+**Reusa `apiGet()` y `safePost()`** (mismo patrón del módulo público de mudanzas) para mitigar HTML 500/405 de Apps Script cold start MailApp.
+
+**Retry helper `safePost()`** local en `vigilantes.js` (1 reintento después de 2s). Si después del retry sigue HTML, retorna `{ok: true, pendingEmail: true, warning: 'Acción enviada...'}`.
+
+### Fases ejecutadas (10 fases con OK del operador)
+
+- **F10.0** — Backup completo (Codigo.gs V18 + vigilantes.html + js/vigilantes.js, local + Drive `Santa Sofia/v19-vigilantes-pre-20261005_024033/`).
+- **F10.1** — Spec aprobado. Archivo: `docs/spec-vigilantes-mudanzas.md` (350 líneas, 10 riesgos auditados).
+- **F10.2** — Append código al Codigo.gs (V18 → V19, 1925 → 2068 líneas):
+  - 1 handler en doGet: `?action=vigilanteVerMudanzas`
+  - 1 handler en doPost: `action=vigilanteCheckMudanza`
+  - 1 función `vigilanteVerMudanzas(fecha)` con filtros (sin fecha → Confirmadas futuras + Canceladas recientes)
+  - 1 función `vigilanteCheckMudanza(data)` con LockService
+  - Constantes nuevas: `MUDANZAS_NUM_COLS = 22`, `COL_MUD_REALIZADA/FECHACHECK/VIGILANTE`, `MUDANZAS_CHECK_REALIZADA/NO_REALIZADA`, `MUDANZAS_CANCELADAS_RECIENTES_DIAS = 30`
+  - 3 headers nuevos en `getMudanzasSheet()`: T/U/V
+- **F10.3** — Deploy V19 manual del operador (05-Oct-2026 19:55). **Problema:** Sheet no se expandió. Diagnóstico: el deploy V19 era la versión v5 (sin auto-expansión).
+- **F10.3'** — Re-deploy V20 del operador (05-Oct-2026 20:01) con versión v6 (con auto-expansión). Éxito: Sheet expandido 19 → 22 cols automáticamente al primer hit.
+- **F10.4** — Pruebas curl del nuevo endpoint:
+  - vigilanteVerMudanzas sin/con fecha: 6 casos OK
+  - vigilanteCheckMudanza: SÍ escribió correctamente al Sheet (confirmado)
+  - **HALLAZGO IMPORTANTE**: el POST devuelve HTML 405/500 al cliente por cold start MailApp, pero los datos SÍ se modifican en Sheet. Mismo patrón conocido del F7.
+- **F10.5** — Frontend refactor (vigilantes.html + js/vigilantes.js):
+  - vigilantes.html: 234 → 252 líneas (+18, -2 — banner actualizado y sección mudanzas agregada)
+  - js/vigilantes.js: 208 → 376 líneas (+168, append puro)
+  - md5 vigilantes.html: d05ebbe286b7aa4dcd341451461921bc
+  - md5 js/vigilantes.js: e4e084079d2b260e88c33002fb92149a
+- **F10.6** — Pruebas E2E con browser + push a GitHub Pages (orden invertido intencionalmente):
+  - Pruebas browser: 2 tabs visibles, sección mudanzas OK, cards OK, check-in OK, buscador residente sigue OK.
+  - Commit 4babde2 + merge 59934d8 + push origin/main.
+- **F10.7** — Pendiente (push del proyecto actualizado tras F10.8).
+
+### Archivos del módulo
+
+- `apps-script/Codigo.gs` (V20, 2085 líneas, 92 KB)
+- `vigilantes.html` (252 líneas, 7 KB)
+- `js/vigilantes.js` (376 líneas, 14 KB)
+- `docs/spec-vigilantes-mudanzas.md` (350 líneas)
+- Actualizado README.md + GUIA-PROYECTO §21

@@ -42,6 +42,23 @@ Arquitectura:
 - **js/admin.js** — agregadas: navResidentes, navMudanzas, cargarMudanzasList, renderMudanzasTable, apiGet, fetchJson (local, replica del patrón módulo mudanzas). El adminListarReservasMudanzen funciona con retry por cold start MailApp.
 - Admin solo ve (NO cancela desde admin — eso lo hace el residente).
 
+**Deploy Vigilantes v2.0** (05-Oct-2026, Apps Script Versión 20):
+- **Backend V20** — 2 endpoints nuevos:
+  - `?action=vigilanteVerMudanzas` (GET con VIGILANTES_TOKEN): lista mudanzas por fecha (opcional). Si sin fecha → muestra Confirmadas futuras + Canceladas recientes (últimos 30 días).
+  - `action=vigilanteCheckMudanza` (POST con VIGILANTES_TOKEN): registra check-in del vigilante (Sí/No realizada + LockService para evitar race conditions).
+- **Sheet "Mudanzas" expandido de 19 → 22 columnas** (auto-expansión al primer hit via getMudanzasSheet()):
+  - Col 20 (T): Realizada (Sí/No)
+  - Col 21 (U): Fecha Check
+  - Col 22 (V): Vigilante
+- **Frontend vigilantes.html refactorizado** — sección "📦 Mudanzas programadas" agregada debajo del buscador de residentes:
+  - Input fecha + botón "🔄 Buscar por fecha"
+  - Botón "Ver todas (futuras + canceladas recientes)" (lista sin filtro de fecha)
+  - Cards con: ID, Fecha, Horario, Torre, Tipo, Apto, Propietario, Estado
+  - Si NO hay check: input nombre del vigilante + botones "✅ Sí realizada" / "❌ No realizada"
+  - Si YA hay check: muestra "Check: Sí/No por [vigilante] ([fecha])"
+- **Banner actualizado**: "consultar residentes Y registrar check-in de mudanzas" (antes: "SOLO CONSULTA").
+- **js/vigilantes.js** — agregadas: showAlertMud, cargarMudanzas, renderMudanzas, checkIn, apiGet, safePost (retry 1 vez para cold start MailApp).
+
 **Deploy v2.1** (16-Sep-2026, Versión 15 Apps Script + commit `9ee4a12`):
 - **Backend v1.9** (Versión 15, Apps Script) — Sección 3 "Autorización parqueadero a tercero" reescrita: pasa de 3 inputs simples (Nombre/Apto/Celular) a **2 filas × 6 inputs** (N°Parqueadero texto libre / Tipo Moto o Carro / Placa autorizado / Nombre / Apto / Celular). Sheet Registros expandido de 191 → 203 columnas (12 nuevas v[191-202]).
 - **Frontend v2.1** (commit `9ee4a12`) — Fix estético de la sección 3: asteriscos rojos quitados (la sección es totalmente opcional, hay residentes que no autorizan parqueadero a nadie), labels acortados para 1 línea, grid uniforme de 6 columnas (115px cada una), inputs/selects a 38px de alto fijo, padding más generoso, texto de ayuda en itálica bajo cada fila.
@@ -112,6 +129,7 @@ Los residentes pueden reservar el ascensor de mudanzas desde la pestaña "Agenda
 - `docs/spec-mudanzas.md` — spec del módulo de mudanzas (633 líneas, OPCIÓN B)
 - `docs/auditoria-f5-mudanzas.md` — auditoría del frontend mudanzas (F5)
 - `docs/spec-admin-mudanzas.md` — spec del admin v2.0 con tab Mudanzas (F9)
+- `docs/spec-vigilantes-mudanzas.md` — spec del vigilantes v2.0 con sección Mudanzas (F10)
 - `manual-residentes.html` — manual de uso para residentes
 
 ## Nota sobre `apps-script/Codigo.gs`
