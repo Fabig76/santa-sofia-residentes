@@ -1,0 +1,199 @@
+/* ============================================================
+   PORTAL DE ARRENDATARIOS — estilos específicos
+   Santa Sofía Club Residencial V.I.S (spec-arrendatarios.md F3)
+   Replica el patrón Cerro Azul (residente.css), adaptado a Santa Sofía.
+   ============================================================ */
+
+.lookup-box {
+  max-width: 520px;
+  margin: 30px auto;
+  padding: 28px;
+  background: var(--fondo-card, #fff);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.lookup-box h3 {
+  color: var(--azul-osc, #1f4e79);
+  margin: 0 0 12px;
+  font-size: 1.3em;
+}
+
+.lookup-box p {
+  margin: 8px 0;
+  color: var(--gris-tx, #333);
+  line-height: 1.5;
+}
+
+.alert {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 0.93em;
+  display: none;
+}
+
+.alert.hidden { display: none !important; }
+.alert.show { display: block; }
+.alert.error { background: var(--err-fondo, #fde8e8); color: var(--err, #c00); border-left: 4px solid var(--err, #c00); }
+.alert.success { background: var(--ok-fondo, #e8f5e8); color: var(--ok, #080); border-left: 4px solid var(--ok, #080); }
+.alert.info { background: var(--adv-fondo, #fff8e0); color: var(--adv, #a06000); border-left: 4px solid var(--adv, #a06000); }
+
+.residente-block {
+  border: 1px solid var(--gris-borde, #ccc);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: var(--fondo, #fafafa);
+}
+
+.residente-block h4 {
+  margin: 0 0 12px;
+  color: var(--azul-osc, #1f4e79);
+  font-size: 1em;
+}
+
+.field {
+  margin-bottom: 12px;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: var(--gris-tx, #333);
+  font-size: 0.92em;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--gris-borde, #ccc);
+  border-radius: 4px;
+  font-size: 0.95em;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--azul, #06c);
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.15);
+}
+
+.field .req { color: var(--err, #c00); }
+.field .help { display: block; margin-top: 4px; color: var(--gris-med, #888); font-size: 0.85em; }
+
+.residentes-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+
+.residentes-list li {
+  padding: 8px 12px;
+  background: var(--azul-claro, #e6f0fa);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  font-size: 0.95em;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .field-row { grid-template-columns: 1fr; }
+}
+
+.hidden { display: none !important; }
+
+/* Zona de borrado en index.html (modo edición) — clearResidente */
+.zona-borrado {
+  margin-top: 24px;
+  padding: 16px;
+  background: #fff8e0;
+  border: 1px solid #f0c040;
+  border-radius: 8px;
+}
+
+.zona-borrado h4 {
+  margin: 0 0 8px;
+  color: #a06000;
+  font-size: 1em;
+}
+
+.zona-borrado p {
+  margin: 8px 0;
+  color: #555;
+  font-size: 0.9em;
+}
+
+.btn-danger {
+  background: #c00;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 0.95em;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-danger:hover { background: #a00; }
+.btn-danger:disabled { background: #ccc; cursor: not-allowed; }
+
+.btn-secondary {
+  background: #888;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 0.95em;
+  cursor: pointer;
+}
+
+.btn-secondary:hover { background: #666; }
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.modal-content h3 {
+  margin: 0 0 12px;
+  color: #c00;
+}
+
+.modal-content p {
+  margin: 8px 0;
+  color: #333;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.modal-buttons button { flex: 1; }
