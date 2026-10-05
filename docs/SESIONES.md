@@ -772,3 +772,33 @@ Probado con los 5 endpoints clave: verificarPropietario ✓, vigilantesLookup �
 
 1. ~~Deploy V21~~ — **COMPLETADO** (05-Oct-2026 21:29).
 2. **Limpieza opcional del Sheet** — MD-0004 (XSS), MD-0005 (prueba duplicada), MD-0006 (prueba V21), check-in "Vigilante Browser Test" en MD-0002, check-in "Juan Pérez" en MD-0001.
+
+---
+
+## 05-Oct-2026 — Limpieza de reservas de prueba + endpoint adminBorrarReserva (V22)
+
+### Contexto
+El operador reportó que al consultar admin/vigilantes aparecían mudanzas que no eran reales (reservas de prueba cargadas durante los E2E).
+
+### Diagnóstico
+En la pestaña "Mudanzas" había 6 reservas, todas de prueba:
+- Canceladas: MD-0001, MD-0002, MD-0003
+- Confirmadas: MD-0004 (test XSS), MD-0005 (falso positivo OPCIÓN B), MD-0006 (prueba V21)
+
+El backend no tenía endpoint de borrado — solo "cancelar" (cambia estado, NO borra la fila). Por eso las Canceladas seguían apareciendo en "canceladas recientes" (últimos 30 días).
+
+### Solución (F0-F5)
+1. F0 Backup: Codigo.gs + export Sheet (local + Drive).
+2. F2 Nuevo endpoint `adminBorrarReserva` (POST, ADMIN_TOKEN) + función `adminBorrarReservaMudanza(idReserva)` que borra la fila física con LockService. Solo append.
+3. F3 Deploy V22 (operador).
+4. F4 Borrado de las 6 reservas una por una.
+5. F5 Verificación: admin (Todas) = 0, vigilante = 0.
+
+### Hallazgo técnico (POST con curl)
+`curl -L -X POST` a Apps Script devuelve HTML en alemán "Seite nicht gefunden / Drive Datei kann nicht geöffnet werden" porque curl convierte POST→GET al seguir el 302 a googleusercontent.com. Solución: Python urllib/requests (reproduce el POST correctamente en la redirección). Documentado en la skill.
+
+### md5
+- Codigo.gs V22: `a17db6ead76a97b0daed0a6123f91c8d` (2144 líneas, +43 vs V21)
+
+### Pendientes al cierre
+- ~~Limpieza del Sheet~~ — **COMPLETADO** (05-Oct-2026): 6 reservas de prueba borradas, Sheet limpio.

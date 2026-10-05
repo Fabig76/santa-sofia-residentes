@@ -66,6 +66,13 @@ Arquitectura:
 - **Deploy V21** (04-Oct-2026 21:29) — Fix #3 (validación de longitudes) activo en producción, verificado con 8 tests (todos pasaron).
 - **TEST-2000** — apto de prueba permanente verificado (fila 45 Sheet Registros, YURY APTO DE PRUEBAS, CC 1094923637).
 
+**Deploy V22 — endpoint de borrado de reservas** (05-Oct-2026):
+- **Backend V22** — 1 endpoint nuevo:
+  - `action=adminBorrarReserva` (POST con ADMIN_TOKEN): borra la fila física de una reserva por su ID (MD-XXXX). Solo admin, con LockService.
+- **Motivo:** limpiar 6 reservas de prueba (MD-0001..MD-0006) que quedaron cargadas en el Sheet tras las pruebas E2E y aparecían en admin/vigilantes como mudanzas reales.
+- **Resultado:** Sheet "Mudanzas" quedó limpio (0 reservas). Los portales admin y vigilantes ya no muestran mudanzas de prueba.
+- El endpoint queda permanente para futuras limpiezas sin tocar el Sheet a mano.
+
 **Deploy v2.1** (16-Sep-2026, Versión 15 Apps Script + commit `9ee4a12`):
 - **Backend v1.9** (Versión 15, Apps Script) — Sección 3 "Autorización parqueadero a tercero" reescrita: pasa de 3 inputs simples (Nombre/Apto/Celular) a **2 filas × 6 inputs** (N°Parqueadero texto libre / Tipo Moto o Carro / Placa autorizado / Nombre / Apto / Celular). Sheet Registros expandido de 191 → 203 columnas (12 nuevas v[191-202]).
 - **Frontend v2.1** (commit `9ee4a12`) — Fix estético de la sección 3: asteriscos rojos quitados (la sección es totalmente opcional, hay residentes que no autorizan parqueadero a nadie), labels acortados para 1 línea, grid uniforme de 6 columnas (115px cada una), inputs/selects a 38px de alto fijo, padding más generoso, texto de ayuda en itálica bajo cada fila.
@@ -89,7 +96,7 @@ Fuente oficial: RUT Santa Sofía subido a Drive.
 ## Sheets
 
 - Sheet principal de respuestas: https://docs.google.com/spreadsheets/d/1xL359rDrhb3_qbhY-tm2MfPXKBqbAehC3zWzsMv1PUo/edit
-  · Pestañas: Registros (203 cols), Entregas (auto-creada), Mudanzas (19 cols, auto-creada desde V17)
+  · Pestañas: Registros (203 cols), Entregas (auto-creada), Mudanzas (22 cols, auto-creada desde V17)
 - Sheet nativo de matrículas lookup: https://docs.google.com/spreadsheets/d/1qEnC5BCRags2r_RHQiB0LjK6Or1rx31Gvopr22-n12w/edit
   · Pestañas: Resumen y Matrículas, Apartamentos, Parqueaderos
 

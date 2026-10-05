@@ -1107,3 +1107,29 @@ El Fix #3 (validación de longitudes) está en `Codigo.gs` (md5 `9367c9d7711b398
 - OPCIÓN B verificada: slot de par Verde-Azul bloqueado correctamente
 
 **Estado final de seguridad: TODOS los fixes desplegados y verificados en producción.**
+
+---
+
+## §23. Endpoint adminBorrarReserva (05-Oct-2026)
+
+### 23.1 Concepto
+
+Endpoint de limpieza para el admin: borra la fila física de una reserva de mudanzas por su ID. Se creó porque las reservas de prueba de los E2E quedaban visibles en admin/vigilantes (no existe borrado para el residente — solo "cancelar", que no borra la fila).
+
+### 23.2 Endpoint
+
+| Endpoint | Método | Auth | Descripción |
+|---|---|---|---|
+| `action=adminBorrarReserva` | POST | ADMIN_TOKEN | Borra la fila de la reserva `idReserva` (MD-XXXX) del Sheet Mudanzas |
+
+Body JSON: `{ "action": "adminBorrarReserva", "token": ADMIN_TOKEN, "idReserva": "MD-XXXX" }`
+
+### 23.3 Cronología de deploy
+
+| Versión | Fecha | Cambio |
+|---|---|---|
+| V22 | 05-Oct-2026 | + adminBorrarReserva (limpieza de 6 reservas de prueba MD-0001..MD-0006) |
+
+### 23.4 Nota técnica (POST a Apps Script)
+
+Para llamar el endpoint desde el agente usar Python `urllib`/`requests`, NO `curl -L` (que convierte POST→GET al seguir el 302 y devuelve HTML en alemán). Ver skill `santa-sofia-residentes`.
