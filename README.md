@@ -130,6 +130,7 @@ Los residentes pueden reservar el ascensor de mudanzas desde la pestaña "Agenda
 - `docs/auditoria-f5-mudanzas.md` — auditoría del frontend mudanzas (F5)
 - `docs/spec-admin-mudanzas.md` — spec del admin v2.0 con tab Mudanzas (F9)
 - `docs/spec-vigilantes-mudanzas.md` — spec del vigilantes v2.0 con sección Mudanzas (F10)
+- `docs/auditoria-f11-completa.md` — reporte de auditoría de seguridad + fixes aplicados
 - `manual-residentes.html` — manual de uso para residentes
 
 ## Nota sobre `apps-script/Codigo.gs`

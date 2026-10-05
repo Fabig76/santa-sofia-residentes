@@ -685,3 +685,69 @@ El operador pidió actualizar el portal de vigilancia (vigilantes.html) para que
 - `js/vigilantes.js` (376 líneas, 14 KB)
 - `docs/spec-vigilantes-mudanzas.md` (350 líneas)
 - Actualizado README.md + GUIA-PROYECTO §21
+
+---
+
+## 05-Oct-2026 — Auditoría F11 + Fixes de seguridad
+
+### Auditoría completa del proyecto
+
+Se auditaron los 3 portales (público, admin, vigilantes) + backend Apps Script V20. Reporte en `docs/auditoria-f11-completa.md` (343 líneas, commit `e945cdb`).
+
+**Hallazgos:**
+
+| # | Severidad | Componente | Bug |
+|---|---|---|---|
+| B1 | 🔴 ALTO | `js/app.js` + `js/admin.js` | XSS: campos del Sheet (observaciones, empresa, etc.) renderizados sin escapeHtml |
+| B2 | 🟠 MEDIO | `apps-script/Codigo.gs` | Sin validación de longitud en empresa/observaciones/telefono (DoS posible) |
+| (FP) | NINGUNO | Backend | Falso positivo: mi prueba de OPCIÓN B falló porque MD-0001 estaba Cancelada al testear. OPCIÓN B funciona correctamente |
+
+**Caso de prueba del XSS (verificado):**
+```
+POST action=reservarMudanza con observaciones="<script>alert(1)</script><b>hack</b>"
+→ MD-0004 creado con el XSS guardado tal cual en el Sheet
+→ admin/vigilante que vea esa fila ejecuta el script (app.js y admin.js no escapaban)
+```
+
+**Validaciones que SÍ funcionan (probadas con curl):**
+- Token inválido, torre inválida, fecha pasada (< 2 días), sin numForm, CC incorrecta
+- idReserva inexistente, status inválido en check-in
+- LockService previene race conditions (3 calls, timeout 30s)
+- Hash dedupe usa PAR (no torre) — OPCIÓN B correcto
+
+### Fixes de seguridad aplicados (commit `74fce99`)
+
+**Fix #1 (B1) — escapeHtml en `js/app.js`:**
+- Nueva función `escapeHtml()` helper (idéntica a vigilantes.js/admin.js)
+- Aplicada en 8 lugares: `renderMisReservas` (4), `showConfirmacion` (4), `renderSlots` (2), `success-advice` (1)
+- Safe ratio: 0% → 100%
+
+**Fix #2 (B1) — esc() en `js/admin.js` renderMudanzasTable:**
+- 9 campos del Sheet ahora pasan por `esc()` antes de `innerHTML`
+- Safe ratio: 0% → 100%
+
+**Fix #3 (B2) — validación de longitudes en `Codigo.gs` reservarMudanza:**
+- empresa: máx 100 chars
+- placa: máx 20 chars
+- observaciones: máx 500 chars
+- Retorna error antes de escribir si excede
+
+**md5 después de fixes:**
+- app.js: `dc40dcada93f11bd2d8d238fdd7e18e2`
+- admin.js: `af2d3162314d7ba59ae5edc34445f361`
+- Codigo.gs: `9367c9d7711b39817e30592ede806299` (requiere deploy V21)
+
+### TEST-2000 verificado
+
+El apto de prueba TEST-2000 (fila 45 del Sheet Registros) ya existía y está completo:
+- Titular: YURY APTO DE PRUEBAS, CC 1094923637, correo yury.prueba@santasoftest.com
+- 3 vehículos (PFM367 Megane tag T-001, GHI789 Spark, EJP61H Moto tag T-002)
+- 2 residentes (Juan Pérez esposo, María López esposa)
+- Llaveros K-001/2/3, 7 eventos en Entregas
+
+Probado con los 5 endpoints clave: verificarPropietario ✓, vigilantesLookup ✓, adminLookup ✓, misReservas ✓, dispMudanzas ✓.
+
+### Pendientes al cierre
+
+1. **Deploy V21** (Fix #3 backend) — pendiente de acción manual del operador.
+2. **Limpieza opcional del Sheet** — MD-0004 (XSS), MD-0005 (prueba duplicada), check-in "Vigilante Browser Test" en MD-0002.

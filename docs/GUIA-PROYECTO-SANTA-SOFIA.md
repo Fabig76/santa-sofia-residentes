@@ -1055,3 +1055,46 @@ La expansión se hace automáticamente vía `getMudanzasSheet()` al primer hit (
 - `apps-script/Codigo.gs` — funciones vigilanteVerMudanzas + vigilanteCheckMudanza (líneas 1957-2066)
 - `vigilantes.html` — sección "📦 Mudanzas programadas" agregada
 - `js/vigilantes.js` — funciones cargarMudanzas/renderMudanzas/checkIn/apiGet/safePost
+
+---
+
+## §22. Seguridad — Auditoría y Fixes (05-Oct-2026)
+
+### 22.1 Resultado de la auditoría F11
+
+Se auditaron los 3 portales + backend Apps Script V20. Reporte completo en `docs/auditoria-f11-completa.md`.
+
+**2 bugs reales encontrados y corregidos:**
+
+| Bug | Severidad | Fix aplicado |
+|---|---|---|
+| B1: XSS en renderizado de datos del Sheet (app.js + admin.js no escapaban) | 🔴 ALTO | `escapeHtml()` en app.js (8 lugares) + `esc()` en admin.js renderMudanzasTable (9 campos) |
+| B2: Sin validación de longitud en empresa/observaciones/telefono | 🟠 MEDIO | `substring`/validación de máx en backend (empresa 100, placa 20, obs 500) |
+
+**1 falso positivo descartado:** OPCIÓN B no estaba rota (mi prueba falló porque MD-0001 estaba Cancelada).
+
+### 22.2 Estado de seguridad por componente
+
+| Componente | escapeHtml | XSS status |
+|---|---|---|
+| `js/app.js` (público) | 8 usos (post-fix) | ✓ SEGURO |
+| `js/admin.js` | 27 usos (post-fix) | ✓ SEGURO |
+| `js/vigilantes.js` | 28 usos | ✓ SEGURO |
+
+### 22.3 Protecciones que ya funcionaban correctamente
+
+- Token inválido → "Token invalido" (server-side, en todos los endpoints)
+- Torre inválida → validación whitelist (Naranja/Amarilla/Verde/Azul)
+- Fecha pasada (< 2 días) → "Las mudanzas deben agendarse con al menos 2 días..."
+- CC incorrecta → validación con normalizarCC (solo dígitos)
+- LockService.getScriptLock (timeout 30s) previene race conditions en reservar/cancelar/check-in
+- Hash dedupe usa PAR (no torre) — OPCIÓN B correcta
+- Vigilante nombre truncado a 100 chars
+
+### 22.4 Nota sobre tokens compartidos
+
+`ADMIN_TOKEN` y `VIGILANTES_TOKEN` están reconstruidos en los JS públicos (patrón Cerro Azul). Cualquiera que lea el código fuente puede verlos. Es decisión de diseño del operador. Alternativa (no aplicada): OAuth real de Google.
+
+### 22.5 Deploy pendiente
+
+El Fix #3 (validación de longitudes) está en `Codigo.gs` (md5 `9367c9d7711b39817e30592ede806299`) pero **requiere deploy V21 manual**. Los fixes de frontend (escapeHtml) ya están en GitHub Pages.
