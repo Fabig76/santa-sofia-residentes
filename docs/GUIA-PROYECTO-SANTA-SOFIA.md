@@ -1133,3 +1133,47 @@ Body JSON: `{ "action": "adminBorrarReserva", "token": ADMIN_TOKEN, "idReserva":
 ### 23.4 Nota técnica (POST a Apps Script)
 
 Para llamar el endpoint desde el agente usar Python `urllib`/`requests`, NO `curl -L` (que convierte POST→GET al seguir el 302 y devuelve HTML en alemán). Ver skill `santa-sofia-residentes`.
+
+---
+
+## §24. Portal de Arrendatarios (05-Oct-2026)
+
+Replica el patrón Cerro Azul (`residente.html`), adaptado a Santa Sofía. Spec completo: `docs/spec-arrendatarios.md`.
+
+**Backend V23** (md5 `ee97ab8ecf0a9d1f6c721a704c8679de`):
+- 1 helper: `verificarAccesoResidenteOPropietario(apto, cc)` — busca CC en v[6] propietario o slots v[30,35,40,45] residentes.
+- 5 endpoints (R.1-R.5): `getEstadoResidente`, `verificarResidente`, `registrarResidente`, `actualizarResidente`, `clearResidente`.
+- LockService en los 3 writes + Logger.log en clearResidente.
+- Bugfixes Cerro Azul: BUGFIX-012 (editMode en submitRecord preserva numForm), BUGFIX-013 (normalizar r.parentesco → r.parent), BUGFIX-018 (NO exponer numForm/nombres/propietario sin CC).
+
+**Frontend**: `arrendatario.html` (6 vistas), `js/arrendatario.js`, `assets/arrendatario.css`, `js/clear-residente.js`. Pestaña "Portal Arrendatario" en `index.html`. Header interno "Portal del Residente".
+
+**Lógica**: el portal funciona para Propietario/Tenedor/Arrendatario, pero el residente entra con CC (slots 1-4) y el propietario usa el flujo "EDITAR MI REGISTRO" de `index.html`.
+
+**clearResidente** (F3b) limpia secciones 5/5.1/6/7/9/10 — **INCLUIDO vehículos 3-4 (v[143..154]) y mascotas 3-4 (v[167..186])** (diferencia vs Cerro Azul). SOLO el propietario (CC contra v[6]) puede ejecutar.
+
+---
+
+## §25. BUGFIX-017 — numForm NUNCA en respuestas a no autenticados (05-Oct-2026, V24)
+
+**Vulnerabilidad CRÍTICA**: `submitRecord` modo creación (Codigo.gs línea 710, antes del fix) filtraba el numForm del registro EXISTENTE a cualquier no autenticado que intentara crear para un apto ocupado.
+
+**Vector de ataque (3 pasos, sin credenciales):**
+1. No autenticado abre `index.html` → "Enviar/Crear registro" → escribe apto (ej. 1122).
+2. El error revela "Tu N° de formulario es SS-XXXX".
+3. Con SS-XXXX + 1122 → "Editar mi registro" → lookup devuelve los 203 campos del propietario → leer/sobrescribir todo.
+
+**Violaba Ley 1581/2012** (datos personales a terceros no autenticados).
+
+**Fix V24** (md5 `3125758d73b43c3ff365813739cf551c`):
+1. Línea 710: mensaje de error de duplicado ya NO incluye numForm — "Usa la opción 'EDITAR MI REGISTRO' con tu N° de formulario para modificarlo, o contacta a la administración (santasofia.clubresidencial@gmail.com)."
+2. `registrarResidente` (R.3): ya NO devuelve `numForm` del propietario al residente que se autoregistra (fuga menor).
+
+**Verificado**: POST a submit con apto ocupado + matriculaApto manual → error nuevo sin numForm. ✓
+
+**Legítimos (NO son fuga)**:
+- Mensajes de éxito al propietario que ACABA de crear/editar SU registro (mostrar SU numForm).
+- editIndicator "Tu N° de formulario se conserva".
+- Inputs de numForm (es INPUT del usuario, no respuesta).
+
+**Lección replicable**: numForm es CREDENCIAL DE EDICIÓN (numForm + apto = acceso total al registro en flujo "EDITAR MI REGISTRO"). Auditar TODOS los endpoints públicos por fugas de credenciales. Equivalente a BUGFIX-017 (Cerro Azul) y BUGFIX-018 (getEstadoResidente).

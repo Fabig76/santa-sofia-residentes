@@ -66,12 +66,32 @@ Arquitectura:
 - **Deploy V21** (04-Oct-2026 21:29) — Fix #3 (validación de longitudes) activo en producción, verificado con 8 tests (todos pasaron).
 - **TEST-2000** — apto de prueba permanente verificado (fila 45 Sheet Registros, YURY APTO DE PRUEBAS, CC 1094923637).
 
-**Deploy V22 — endpoint de borrado de reservas** (05-Oct-2026):
-- **Backend V22** — 1 endpoint nuevo:
-  - `action=adminBorrarReserva` (POST con ADMIN_TOKEN): borra la fila física de una reserva por su ID (MD-XXXX). Solo admin, con LockService.
-- **Motivo:** limpiar 6 reservas de prueba (MD-0001..MD-0006) que quedaron cargadas en el Sheet tras las pruebas E2E y aparecían en admin/vigilantes como mudanzas reales.
-- **Resultado:** Sheet "Mudanzas" quedó limpio (0 reservas). Los portales admin y vigilantes ya no muestran mudanzas de prueba.
-- El endpoint queda permanente para futuras limpiezas sin tocar el Sheet a mano.
+- **Deploy V22** — endpoint de borrado de reservas (05-Oct-2026):
+  - **Backend V22** — 1 endpoint nuevo:
+    - `action=adminBorrarReserva` (POST con ADMIN_TOKEN): borra la fila física de una reserva por su ID (MD-XXXX). Solo admin, con LockService.
+  - **Motivo:** limpiar 6 reservas de prueba (MD-0001..MD-0006) que quedaron cargadas en el Sheet tras las pruebas E2E y aparecían en admin/vigilantes como mudanzas reales.
+  - **Resultado:** Sheet "Mudanzas" quedó limpio (0 reservas). Los portales admin y vigilantes ya no muestran mudanzas de prueba.
+  - El endpoint queda permanente para futuras limpiezas sin tocar el Sheet a mano.
+
+**Portal de Arrendatarios** (05-Oct-2026, Apps Script V23):
+- **Backend V23** — 1 helper + 5 endpoints nuevos:
+  - `?action=getEstadoResidente&apto=X` (GET): decide 3 caminos (no existe / vacío / con datos). NO expone numForm/nombres/propietario (BUGFIX-018 aplicado desde el inicio).
+  - `?action=verificarResidente&apto=X&cc=Y` (GET): valida CC contra slots 1-4 de residentes.
+  - `action=registrarResidente` (POST con LockService): auto-registro cuando TODOS los slots están vacíos. Preserva numForm del propietario.
+  - `action=actualizarResidente` (POST con LockService): edita solo el slot N del residente identificado por CC.
+  - `action=clearResidente` (POST con LockService + Logger.log): limpia secciones 5/5.1/6/7/9/10 (incluye vehículos 3-4 y mascotas 3-4). SOLO el propietario (CC contra v[6]).
+- **Frontend** — `arrendatario.html` (6 vistas) + `js/arrendatario.js` (STATE + 5 flujos) + `assets/arrendatario.css` + `js/clear-residente.js` (zona de borrado en index.html modo edición).
+- **Pestaña en index.html** — "Portal Arrendatario" (única mención de "arrendatario"; el portal se llama "Portal del Residente" internamente).
+- **Lógica idéntica a Cerro Azul** (`residente.html`): el portal funciona para Propietario/Tenedor/Arrendatario, pero solo el residente (slots 1-4) entra con su CC; el propietario usa el flujo "EDITAR MI REGISTRO" del index.html.
+- **Auth por apto + CC** (sin password). CC debe matchear un slot de residente.
+- **Spec:** `docs/spec-arrendatarios.md`.
+
+**BUGFIX-017 (05-Oct-2026, Apps Script V24)** — numForm NUNCA en respuestas a no autenticados:
+- **Vulnerabilidad (CRÍTICA)**: `submitRecord` modo creación filtraba el numForm del registro EXISTENTE a no autenticados (vector de ataque: crear para apto X → recibe numForm → con numForm+apto edita registro completo).
+- **Fix V24**: mensaje de error de duplicado ya NO incluye numForm. `registrarResidente` ya NO devuelve numForm del propietario.
+- **Violaba Ley 1581/2012** (datos personales a terceros).
+- Equivalente a BUGFIX-017 de Cerro Azul.
+
 
 **Deploy v2.1** (16-Sep-2026, Versión 15 Apps Script + commit `9ee4a12`):
 - **Backend v1.9** (Versión 15, Apps Script) — Sección 3 "Autorización parqueadero a tercero" reescrita: pasa de 3 inputs simples (Nombre/Apto/Celular) a **2 filas × 6 inputs** (N°Parqueadero texto libre / Tipo Moto o Carro / Placa autorizado / Nombre / Apto / Celular). Sheet Registros expandido de 191 → 203 columnas (12 nuevas v[191-202]).

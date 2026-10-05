@@ -802,3 +802,55 @@ El backend no tenía endpoint de borrado — solo "cancelar" (cambia estado, NO 
 
 ### Pendientes al cierre
 - ~~Limpieza del Sheet~~ — **COMPLETADO** (05-Oct-2026): 6 reservas de prueba borradas, Sheet limpio.
+
+---
+
+## 05-Oct-2026 — Portal de Arrendatarios (V22→V24) + BUGFIX-017
+
+### Portal de Arrendatarios (F0-F8 completo)
+
+Spec: `docs/spec-arrendatarios.md`. Replica el patrón Cerro Azul (`residente.html`), adaptado a Santa Sofía.
+
+**Backend V23** (md5 `ee97ab8ecf0a9d1f6c721a704c8679de`, 2505 líneas, +361 vs V22):
+- 1 helper: `verificarAccesoResidenteOPropietario(apto, cc)`
+- 5 endpoints: `getEstadoResidente`, `verificarResidente`, `registrarResidente`, `actualizarResidente`, `clearResidente`
+- LockService en los 3 writes + Logger.log en clearResidente
+- Bugfixes Cerro Azul aplicados: BUGFIX-012, BUGFIX-013, BUGFIX-018
+
+**Frontend (F3)**:
+- `arrendatario.html` (6 vistas) + `assets/arrendatario.css` + `js/arrendatario.js` (STATE + 5 flujos)
+- Pestaña "Portal Arrendatario" en index.html (única mención de "arrendatario")
+- Header interno se llama "Portal del Residente"
+
+**Zona de borrado (F3b)**:
+- `js/clear-residente.js` standalone + integración con `js/app.js` (bindClearResidente después de poblarFormulario)
+- Botón "borrado de datos residente" + modal "Esto borrará los residentes y vehículos del apartamento. ¿Confirmas?"
+- clearResidente limpia secciones 5/5.1/6/7/9/10 **INCLUIDO vehículos 3-4 (v[143..154]) y mascotas 3-4 (v[167..186])** — diferencia vs Cerro Azul
+
+**Pruebas E2E (F5) con TEST-2000**:
+- T1 R.3 rechazo: ✓ "ya tiene 1 residente(s) registrado(s)"
+- T2 R.4 rechazo CC incorrecta: ✓ "La cédula no corresponde al slot 1"
+- T3 R.5 rechazo sin apto/cc: ✓ "Falta apto o cc"
+- T4 R.5 ejecución CC propietario: ✓ limpió secciones (reversible con backup)
+- Restauración con R.3: ✓ TEST-2000 restaurado idéntico al backup pre-arrendatarios
+
+**Push F6**: commit `c6937f8` + fix logo `623dc17` en main.
+
+### BUGFIX-017 (V24) — numForm NUNCA en respuestas a no autenticados
+
+**Descubierto:** auditoría post-deploy del portal de arrendatarios (05-Oct-2026).
+
+**Vulnerabilidad (CRÍTICA)**: `submitRecord` modo creación (Codigo.gs línea 710, antes del fix) filtraba el numForm del registro EXISTENTE a cualquier no-autenticado que intentara crear para un apto ocupado:
+```
+'Ya existe un registro para el apartamento ' + apto + '. Tu N° de formulario es ' + existing.values[COL_NUM_FORM] + '...'
+```
+
+**Vector de ataque**: no autenticado crea para apto X → recibe numForm → con numForm+apto edita registro completo (flujo "EDITAR MI REGISTRO" solo pide numForm+apto, sin cédula). Viola Ley 1581/2012.
+
+**Fix V24** (md5 `3125758d73b43c3ff365813739cf551c`):
+1. Línea 710: mensaje nuevo sin numForm — "Usa la opción 'EDITAR MI REGISTRO' con tu N° de formulario para modificarlo, o contacta a la administración..."
+2. `registrarResidente` (R.3): ya NO devuelve `numForm` del propietario (fuga menor).
+
+**Verificado**: POST a submit con apto 2000 + matriculaApto manual → error nuevo sin numForm. ✓
+
+**Pendiente**: actualizar README.md y GUIA §24/§25 con este cambio (próximo commit).
