@@ -152,6 +152,10 @@ async function buscarRegistro() {
     state.editLookup = data.row;
     state.numForm = data.row.numForm;
     poblarFormulario(data.row);
+    // F3b: agregar zona de borrado clearResidente (solo propietario)
+    if (typeof bindClearResidente === 'function') {
+      bindClearResidente(data.row.numForm, data.row.apto, data.row.ccProp);
+    }
     $('#view-edit').classList.add('hidden');
     // FIX: #form-card está anidado dentro de #view-create. Al buscar desde la pestaña
     // "Editar mi registro", setMode('edit') ocultó #view-create. Hay que volver a
