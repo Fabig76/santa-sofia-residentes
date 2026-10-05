@@ -190,8 +190,7 @@
   <div class="card">
     <div class="vig-banner">
       <strong>👮 Acceso solo para personal de vigilancia</strong>
-      Esta página es de SOLO CONSULTA. No permite modificar ni registrar datos.
-      Use esta información únicamente para identificar residentes en portería.
+      Esta página permite consultar residentes por apartamento Y registrar check-in de mudanzas (Sí/No realizada).
     </div>
 
     <div id="alert-vig" class="alert hidden" role="alert"></div>
@@ -214,6 +213,25 @@
           </div>
         </div>
         <div id="resultado"></div>
+      </div>
+    </div>
+
+    <!-- ====== MUDANZAS (F10) ====== -->
+    <div class="section" style="padding:18px; margin-top:16px; border-top:2px solid var(--azul-claro);">
+      <div class="section-head" style="background:transparent;">
+        <span style="color:var(--azul-osc); font-weight:700;">📦 Mudanzas programadas</span>
+      </div>
+      <div class="section-body" style="padding-top:14px;">
+        <div id="alert-mud" class="alert hidden" role="alert"></div>
+        <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:end;">
+          <div class="field" style="margin:0;">
+            <label>Fecha <span class="req">*</span></label>
+            <input type="date" id="mudFecha" style="padding:8px 10px;">
+          </div>
+          <button type="button" class="btn btn-secondary" id="btnVerTodas">Ver todas (futuras + canceladas recientes)</button>
+          <button type="button" class="btn btn-primary" id="btnCargarFecha">🔄 Buscar por fecha</button>
+        </div>
+        <div id="mudList"></div>
       </div>
     </div>
 
