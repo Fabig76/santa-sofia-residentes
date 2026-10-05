@@ -314,8 +314,17 @@ main {
   margin-bottom: 6px;
   font-size: 14px;
   cursor: pointer;
+  line-height: 1.2;
+  white-space: nowrap;
 }
-.radio-row input { accent-color: var(--azul); width: 16px; height: 16px; }
+.radio-row input {
+  accent-color: var(--azul);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
 
 /* ---------- BOTONES ---------- */
 .btn {
