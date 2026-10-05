@@ -805,6 +805,41 @@ El backend no tenía endpoint de borrado — solo "cancelar" (cambia estado, NO 
 
 ---
 
+## 05-Oct-2026 — Ajustes UX en portal principal (post-V24)
+
+Cambios cosméticos en el frontend (no afectan backend ni lógica de negocio):
+
+1. **Quitar "Arrendatario" de "Diligencia como" en index.html** (commit 6fdef46):
+   - Los arrendatarios NO llenan este formato inicial. Usan el Portal Arrendatario para autoregistrar después.
+   - Opciones que quedan: Propietario | Tenedor / Otro (Encargado del inmueble).
+   - Backend sigue aceptando 'Arrendatario' como valor válido de diligencia (por si llega de otro flujo).
+
+2. **Renombrar "Encargado o administrador del inmueble" → "Encargado del inmueble"** (commits 4dd0bb7 + ee0a3f6):
+   - Label del radio de diligencia (value interno sigue "Tenedor / Otro").
+   - Título de la sección 2 en index.html + manual-residentes.html.
+   - Comentario HTML actualizado.
+   - No afecta backend: usa campos nombreArr/ccArr (v[17..20]) y value "Tenedor / Otro", ninguno referencia el título.
+
+3. **Fila completa para "Diligencia como" en index.html** (commit 38d579e):
+   - Antes compartía fila (50%) con "Fecha de diligenciamiento" — los 3 radios se apretujaban.
+   - Ahora "Diligencia" va en su propia fila (`grid-column: 1 / -1`) con `flex-wrap: wrap` y `gap: 14px`.
+
+4. **Botón "Volver" movido al final en arrendatario.html** (commit 9c3ef6d):
+   - Estaba en el header (desbalanceaba el encuadre superior).
+   - Movido a la parte de abajo, entre `</main>` y el `<footer>`.
+
+5. **Logo corregido en arrendatario.html** (commit 623dc17):
+   - El logo real es `logo.png` (no `logo.jpg` que era el path incorrecto).
+   - Cambiado en 2 lugares: favicon e img del header.
+
+6. **"Portal Arrendatario" integrado en mode-tabs** (commit 2fbe414):
+   - Antes estaba en un `<div class="mode-external">` separado (suelto).
+   - Ahora es un 4to elemento dentro del mismo `.mode-tabs` con clase `mode-tab` (mismo estilo que los otros 3 tabs).
+
+Pendiente: actualizar README.md y GUIA con este cambio (próximo commit).
+
+---
+
 ## 05-Oct-2026 — Portal de Arrendatarios (V22→V24) + BUGFIX-017
 
 ### Portal de Arrendatarios (F0-F8 completo)

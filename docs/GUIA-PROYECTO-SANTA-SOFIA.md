@@ -1177,3 +1177,47 @@ Replica el patrón Cerro Azul (`residente.html`), adaptado a Santa Sofía. Spec 
 - Inputs de numForm (es INPUT del usuario, no respuesta).
 
 **Lección replicable**: numForm es CREDENCIAL DE EDICIÓN (numForm + apto = acceso total al registro en flujo "EDITAR MI REGISTRO"). Auditar TODOS los endpoints públicos por fugas de credenciales. Equivalente a BUGFIX-017 (Cerro Azul) y BUGFIX-018 (getEstadoResidente).
+
+---
+
+## §26. Ajustes UX post-V24 (05-Oct-2026)
+
+Cambios cosméticos en el frontend. **No afectan backend ni lógica de negocio.**
+
+### 26.1 Opciones de "Diligencia como" en el portal principal
+
+**Antes** (3 opciones): Propietario | Arrendatario | Tenedor / Otro (Encargado o administrador del inmueble).
+
+**Ahora** (2 opciones): Propietario | Tenedor / Otro (Encargado del inmueble).
+
+**Razón**: los arrendatarios NO llenan este formato inicial. Usan el Portal Arrendatario (`arrendatario.html`) para autoregistrar sus datos DESPUÉS de que el propietario ya creó el registro.
+
+**Backend**: sigue aceptando 'Arrendatario' como valor válido de `diligencia` (defensa en profundidad, por si llega de otro flujo). El frontend del portal principal ya no lo ofrece.
+
+### 26.2 Renombrar "Encargado o administrador del inmueble" → "Encargado del inmueble"
+
+Label del radio de diligencia, título de la sección 2 en `index.html`, comentario HTML y manual de residentes.
+
+**Value interno del radio**: sigue siendo `'Tenedor / Otro'` (mismo patrón Cerro Azul: el operador renombra la etiqueta visible pero mantiene el value para no romper registros existentes en el Sheet).
+
+**Backend**: NO requiere modificación. Usa campos `nombreArr`/`ccArr`/`correoArr`/`celArr` (v[17..20]) y el value `'Tenedor / Otro'`, ninguno referencia el título de la sección.
+
+### 26.3 Layout de "Diligencia como" en `index.html`
+
+**Antes**: compartía fila (50%) con "Fecha de diligenciamiento" — los 3 radios se apretujaban.
+**Ahora**: "Diligencia" va en su propia fila completa (`grid-column: 1 / -1`) con `flex-wrap: wrap` y `gap: 14px`. Los radios se reacomoda si no caben.
+
+### 26.4 Botón "Volver" movido al final en `arrendatario.html`
+
+Estaba en un `<nav>` dentro del `<header>` (desbalanceaba el encuadre superior). Movido a un `<div>` entre `</main>` y el `<footer>`. El header queda limpio con solo logo + título.
+
+### 26.5 Logo corregido en `arrendatario.html`
+
+Path del logo era `assets/logo.jpg` (incorrecto). El logo real es `assets/logo.png`. Corregido en 2 lugares: `<link rel="icon">` y `<img>` del header.
+
+### 26.6 "Portal Arrendatario" integrado en `mode-tabs`
+
+**Antes**: estaba en un `<div class="mode-external">` separado (suelto, debajo de los 3 tabs).
+**Ahora**: es un 4to elemento `<a>` dentro del mismo `<div class="mode-tabs">` con clase `mode-tab` (mismo estilo que los otros 3 tabs).
+
+Commits: `623dc17` (logo), `2fbe414` (tabs), `38d579e` (layout diligencia), `6fdef46` (quitar Arrendatario), `4dd0bb7` (renombrar label), `9c3ef6d` (botón Volver), `ee0a3f6` (sección 2).
