@@ -307,16 +307,16 @@ main {
 }
 
 .radio-row {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 6px;
   margin-right: 18px;
   margin-bottom: 6px;
   font-size: 14px;
-  line-height: 1;
   cursor: pointer;
   white-space: nowrap;
-  padding: 2px 0;
+  padding: 4px 0;
 }
 .radio-row input {
   accent-color: var(--azul);
@@ -324,9 +324,10 @@ main {
   height: 16px;
   margin: 0;
   flex-shrink: 0;
-  vertical-align: middle;
-  position: relative;
-  top: 1px;
+  grid-row: 1;
+  grid-column: 1;
+  align-self: center;
+  justify-self: center;
 }
 
 /* ---------- BOTONES ---------- */
