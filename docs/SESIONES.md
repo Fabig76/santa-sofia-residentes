@@ -735,7 +735,7 @@ POST action=reservarMudanza con observaciones="<script>alert(1)</script><b>hack<
 **md5 después de fixes:**
 - app.js: `dc40dcada93f11bd2d8d238fdd7e18e2`
 - admin.js: `af2d3162314d7ba59ae5edc34445f361`
-- Codigo.gs: `9367c9d7711b39817e30592ede806299` (requiere deploy V21)
+- Codigo.gs: `9367c9d7711b39817e30592ede806299`
 
 ### TEST-2000 verificado
 
@@ -747,7 +747,28 @@ El apto de prueba TEST-2000 (fila 45 del Sheet Registros) ya existía y está co
 
 Probado con los 5 endpoints clave: verificarPropietario ✓, vigilantesLookup ✓, adminLookup ✓, misReservas ✓, dispMudanzas ✓.
 
+### Deploy V21 + Verificación final (05-Oct-2026 21:29)
+
+**Deploy V21 completado por el operador** (Versión 21, 04-Oct-2026 21:29). Fix #3 (validación de longitudes) ahora activo en producción.
+
+**Pruebas de verificación V21 (8 tests, todos pasaron):**
+
+| Test | Entrada | Resultado |
+|---|---|---|
+| 1 | observaciones 600 chars | ✓ RECHAZADO "Máximo 500 caracteres" |
+| 2 | empresa 150 chars | ✓ RECHAZADO "Máximo 100 caracteres" |
+| 3 | placa 25 chars | ✓ RECHAZADO "Máximo 20 caracteres" |
+| 4 | reserva normal | ✓ ACEPTADO MD-0006 creado |
+| 5 | nextId | ✓ SS-0088 |
+| 6 | dispMudanzas Verde 2026-10-22 | ✓ slot 08:00 ocupado por MD-0006 |
+| 7 | verificarPropietario TEST-2000 | ✓ OK |
+| 8 | misReservas TEST-2000 | ✓ muestra MD-0006 |
+
+**Confirmaciones adicionales:**
+- OPCIÓN B verificada: el slot de Verde-Azul quedó bloqueado tras MD-0006 (dispMudanzas lo refleja `disponible:false`).
+- Los flujos normales siguen funcionando sin cambios (nextId, dispMudanzas, verificarPropietario, misReservas).
+
 ### Pendientes al cierre
 
-1. **Deploy V21** (Fix #3 backend) — pendiente de acción manual del operador.
-2. **Limpieza opcional del Sheet** — MD-0004 (XSS), MD-0005 (prueba duplicada), check-in "Vigilante Browser Test" en MD-0002.
+1. ~~Deploy V21~~ — **COMPLETADO** (05-Oct-2026 21:29).
+2. **Limpieza opcional del Sheet** — MD-0004 (XSS), MD-0005 (prueba duplicada), MD-0006 (prueba V21), check-in "Vigilante Browser Test" en MD-0002, check-in "Juan Pérez" en MD-0001.

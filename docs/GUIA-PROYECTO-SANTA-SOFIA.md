@@ -1095,6 +1095,15 @@ Se auditaron los 3 portales + backend Apps Script V20. Reporte completo en `docs
 
 `ADMIN_TOKEN` y `VIGILANTES_TOKEN` están reconstruidos en los JS públicos (patrón Cerro Azul). Cualquiera que lea el código fuente puede verlos. Es decisión de diseño del operador. Alternativa (no aplicada): OAuth real de Google.
 
-### 22.5 Deploy pendiente
+### 22.5 Deploy V21 — COMPLETADO
 
-El Fix #3 (validación de longitudes) está en `Codigo.gs` (md5 `9367c9d7711b39817e30592ede806299`) pero **requiere deploy V21 manual**. Los fixes de frontend (escapeHtml) ya están en GitHub Pages.
+El Fix #3 (validación de longitudes) está en `Codigo.gs` (md5 `9367c9d7711b39817e30592ede806299`) y fue **desplegado como V21** (04-Oct-2026 21:29) por el operador. Los fixes de frontend (escapeHtml) ya están en GitHub Pages.
+
+**Verificación V21 (8 tests, todos pasaron):**
+- observaciones > 500 chars → rechazado
+- empresa > 100 chars → rechazado
+- placa > 20 chars → rechazado
+- reserva normal → aceptada (MD-0006)
+- OPCIÓN B verificada: slot de par Verde-Azul bloqueado correctamente
+
+**Estado final de seguridad: TODOS los fixes desplegados y verificados en producción.**
