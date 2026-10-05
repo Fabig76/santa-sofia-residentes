@@ -832,9 +832,50 @@ Cambios cosméticos en el frontend (no afectan backend ni lógica de negocio):
    - El logo real es `logo.png` (no `logo.jpg` que era el path incorrecto).
    - Cambiado en 2 lugares: favicon e img del header.
 
-6. **"Portal Arrendatario" integrado en mode-tabs** (commit 2fbe414):
+5. **"Portal Arrendatario" integrado en mode-tabs** (commit 2fbe414):
    - Antes estaba en un `<div class="mode-external">` separado (suelto).
    - Ahora es un 4to elemento dentro del mismo `.mode-tabs` con clase `mode-tab` (mismo estilo que los otros 3 tabs).
+
+---
+
+## 05-Oct-2026 — Deploy V25: "Tenedor / Otro" → "Encargado" en Sheet
+
+### Cambio
+
+El operador reportó que al seleccionar "Encargado" en el formulario, el Sheet mostraba "Tenedor / Otro" (value interno del radio). El desacople label/value causaba confusión.
+
+**Solución (opción C)**: el backend traduce al guardar en el Sheet. El frontend queda igual (sigue con `value="Tenedor / Otro"`).
+
+### Cambios en backend (V25, md5 `337f5194946c0b10acbed375233c9d1a`)
+
+1. **`buildRowFromPayload` línea 748** — al construir la fila, si `diligencia === 'Tenedor / Otro'`, guardar `'Encargado'` en v[4]:
+   ```javascript
+   v[4] = String(d.diligencia || '').trim();
+   if (v[4] === 'Tenedor / Otro') v[4] = 'Encargado';
+   ```
+
+2. **`verificarPropietarioMudanza` línea 1567** — validación para agendar mudanzas acepta ambos valores (retro-compat con registros viejos):
+   ```javascript
+   if (diligencia !== 'Propietario' && diligencia !== 'Tenedor / Otro' && diligencia !== 'Encargado') { ... }
+   ```
+
+### Resultado
+
+- Registros NUEVOS: el Sheet dirá "Encargado" (traducción aplicada).
+- Registros VIEJOS: el Sheet sigue con "Tenedor / Otro" (no se migran).
+- Frontend: sin cambios (sigue con `value="Tenedor / Otro"`).
+- Validación mudanzas: acepta ambos valores (no rompe registros viejos).
+
+### Verificación
+
+POST de prueba con `apto=9999` + `diligencia="Tenedor / Otro"` creó registro SS-0088 (fila 90). Verificado con lookup: `diligencia: "Encargado"`. ✓
+
+### Nota
+
+- El registro SS-0088 (fila 90) es de prueba y quedó en el Sheet. Si quieres eliminarlo, hazlo manualmente (no hay endpoint de delete para Registros, solo para Mudanzas).
+- El frontend sigue enviando "Tenedor / Otro" como value. La traducción es solo al guardar.
+
+Pendiente: actualizar README.md y GUIA con este cambio.
 
 Pendiente: actualizar README.md y GUIA con este cambio (próximo commit).
 

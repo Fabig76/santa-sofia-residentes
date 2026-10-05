@@ -1221,3 +1221,48 @@ Path del logo era `assets/logo.jpg` (incorrecto). El logo real es `assets/logo.p
 **Ahora**: es un 4to elemento `<a>` dentro del mismo `<div class="mode-tabs">` con clase `mode-tab` (mismo estilo que los otros 3 tabs).
 
 Commits: `623dc17` (logo), `2fbe414` (tabs), `38d579e` (layout diligencia), `6fdef46` (quitar Arrendatario), `4dd0bb7` (renombrar label), `9c3ef6d` (botón Volver), `ee0a3f6` (sección 2).
+
+---
+
+## §27. V25 — Traducción "Tenedor / Otro" → "Encargado" en Sheet (05-Oct-2026)
+
+### Problema
+
+El radio de "Diligencia como" tiene `value="Tenedor / Otro"` (value interno) pero label visible "Encargado del inmueble". El Sheet muestra el value, por eso aparecía "Tenedor / Otro" en la columna `diligencia` (v[4]).
+
+### Solución (opción C — solo registros nuevos)
+
+El backend traduce al guardar. El frontend queda igual (sigue con `value="Tenedor / Otro"`).
+
+### Cambios en backend (V25, md5 `337f5194946c0b10acbed375233c9d1a`)
+
+**`buildRowFromPayload` línea 748** — al construir la fila, si `diligencia === 'Tenedor / Otro'`, guardar `'Encargado'` en v[4]:
+```javascript
+v[4] = String(d.diligencia || '').trim();
+if (v[4] === 'Tenedor / Otro') v[4] = 'Encargado';
+```
+
+**`verificarPropietarioMudanza` línea 1567** — validación para agendar mudanzas acepta ambos valores (retro-compat con registros viejos):
+```javascript
+if (diligencia !== 'Propietario' && diligencia !== 'Tenedor / Otro' && diligencia !== 'Encargado') { ... }
+```
+
+### Resultado
+
+| Tipo de registro | Sheet muestra |
+|---|---|
+| NUEVO (post-V25) | "Encargado" |
+| VIEJO (pre-V25) | "Tenedor / Otro" (sin migración) |
+
+- Frontend: sin cambios (sigue con `value="Tenedor / Otro"`).
+- Validación mudanzas: acepta ambos valores.
+- Sin migración retroactiva del Sheet.
+
+### Verificación
+
+POST de prueba con `apto=9999` + `diligencia="Tenedor / Otro"` creó registro SS-0088 (fila 90). Verificado con `lookup(SS-0088, 9999)`: `diligencia: "Encargado"`. ✓
+
+### Nota
+
+- El registro SS-0088 (fila 90) es de prueba y quedó en el Sheet. Si quieres eliminarlo, hazlo manualmente (no hay endpoint de delete para Registros, solo para Mudanzas).
+- Si en el futuro se quiere migrar registros viejos, habría que hacer un script que lea el Sheet y cambie "Tenedor / Otro" → "Encargado" en v[4].
