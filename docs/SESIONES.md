@@ -563,3 +563,70 @@ Sintaxis `node --check js/app.js`: OK.
 ### Pendiente (F8)
 
 - **F8** — Push a GitHub Pages: crear rama `feature/mudanzas`, commitear cambios, push, esperar OK del operador para mergear a main.
+
+---
+
+## 05-Oct-2026 — Admin v2.0 (refactor con Tab Mudanzas, V18)
+
+### Cambio solicitado
+
+El operador pidió actualizar el panel administrativo para que sea parecido al de Cerro Azul, que tiene 3 tabs (👥 Residentes / 📦 Mudanzas / 🏛️ Salón Social). Para Santa Sofía solo aplican 2 tabs (NO Salón Social porque no aplica).
+
+### Decisiones de diseño
+
+**Solo 2 tabs** (👥 Residentes + 📦 Mudanzas), patrón Cerro Azul:
+- Tab Residentes: secciones existentes envueltas (buscar/resumen/tags/llaves/historial, sin cambios funcionales).
+- Tab Mudanzas (NUEVO): lista con filtros (estado, torre, proxDias) + tabla renderizada.
+
+**Filtro torre INDIVIDUAL** (no por par como en el módulo público): el admin puede querer ver específicamente Naranja vs Amarilla. La OPCIÓN B del módulo público sigue activa (en `dispMudanzas` y `reservarMudanza`).
+
+**NO acciones de admin** sobre mudanzas (NO cancelar, NO editar). Admin solo ve (consulta). El residente cancela su propia reserva desde la pestaña "Agendar mudanza".
+
+**Filtros con defaults razonables:**
+- estado: Confirmada (más relevante para planning)
+- torre: Todas
+- proxDias: 8 (balance entre "todo" y "muy específico")
+
+**Retry helper `fetchJson()` local en admin.js** (mitigación HTML 500/405 de Apps Script cold start MailApp), replica del patrón usado en js/app.js para el módulo público de mudanzas.
+
+### Fases ejecutadas (9 fases con OK del operador)
+
+- **F9.0** — Backup completo (Codigo.gs V17 + admin.html + js/admin.js, local + Drive `Santa Sofia/v18-admin-pre-20261005_015337/`).
+- **F9.1** — Spec aprobado. Archivo: `docs/spec-admin-mudanzas.md` (484 líneas, 10 riesgos auditados).
+- **F9.2** — Append código al Codigo.gs (V18, 1925 líneas):
+  - 1 handler en doGet: `?action=adminListarReservasMudanzen`
+  - 1 función `adminListarReservasMudanzen(estado, torre, proxDias)` con filtros
+  - Reusa `getMudanzasSheet`, `formatDateOnly`, `normalizarHora` de V17
+- **F9.3** — Deploy V18 manual del operador (05-Oct-2026 19:03).
+- **F9.4** — Pruebas curl del nuevo endpoint:
+  - Sin token → "Token invalido"
+  - Sin filtros → total=3
+  - estado=Confirmada → total=0 (correcto, todas canceladas)
+  - estado=Cancelada → total=3
+  - torre=Naranja → total=2 (MD-0001 + MD-0003)
+  - torre=Verde → total=1 (MD-0002)
+  - torre=Azul → total=0
+  - proxDias=8 → 3 reservas en rango
+  - proxDias=0 → filtro IGNORADO, devuelve todas
+  - Combinación estado=Cancelada&torre=Naranja → total=2
+- **F9.5** — Frontend refactor (admin.html + js/admin.js):
+  - admin.html: 251 → 288 líneas (+37, 0 quitadas, append puro)
+  - js/admin.js: 367 → 496 líneas (+129, 1 quitada — cierre }); original)
+  - md5 admin.html: 21091773163a6368acf30321b9c31755
+  - md5 js/admin.js: fd452942c89702f5db73619895390293
+- **F9.6 + F9.7** — Pruebas E2E con browser + push a GitHub Pages (orden invertido intencionalmente para que browser tenga efecto):
+  - Pruebas browser: 2 tabs visibles, click tab Mudanzas, filtros funcionan, datos correctos, click tab Residentes + buscar apto sigue funcionando.
+  - Commit bfcfa00 + merge 4965471 + push origin/main.
+- **F9.8** — Actualizar .md del proyecto (README, GUIA §20, esta entrada en SESIONES).
+
+### Archivos del módulo
+
+- `apps-script/Codigo.gs` (V18, 1925 líneas, 86 KB)
+- `admin.html` (288 líneas, 11 KB)
+- `js/admin.js` (496 líneas, 20 KB)
+- `docs/spec-admin-mudanzas.md` (484 líneas)
+- Actualizado README.md + GUIA-PROYECTO §20
+
+### Pendiente (ninguno)
+
+El proyecto está al día con la documentación. Si en el futuro el operador pide Salón Social (similar a Cerro Azul), se haría un F10 similar a F9.

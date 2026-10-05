@@ -892,3 +892,89 @@ Esto evita mostrar errores falsos al usuario.
 - `docs/spec-mudanzas.md` — spec completa del módulo (590 líneas, OPCIÓN B)
 - `docs/auditoria-f5-mudanzas.md` — auditoría del frontend (F5) con 10 riesgos mitigados
 - `apps-script/Codigo.gs` — constantes MUDANZAS_*, helpers, endpoints (líneas 1186-1831)
+
+---
+
+## §20. Admin v2.0 — Refactor con Tab Mudanzas (deploy 05-Oct-2026)
+
+**Versión backend**: Apps Script V18 (05-Oct-2026 19:03 COL)
+**Versión frontend**: V2.0 (commit `4965471` en main)
+**URL del backend**: misma URL activa (V18 es "Nueva versión", preserva URL)
+
+### 20.1 Concepto
+
+Refactor del panel administrativo para añadir 2 tabs (👥 Residentes + 📦 Mudanzas), siguiendo el patrón de Cerro Azul. SIN Salón Social (no aplica a Santa Sofía).
+
+El admin puede ver TODAS las reservas de mudanzas con filtros, pero NO cancela (esa acción la hace el residente desde la pestaña "Agendar mudanza" en el formulario principal).
+
+### 20.2 Arquitectura (1 endpoint nuevo, frontend con tabs)
+
+**1 endpoint Apps Script (V18)**:
+
+| Endpoint | Método | Auth | Descripción |
+|---|---|---|---|
+| `?action=adminListarReservasMudanzas` | GET | ADMIN_TOKEN | Lista TODAS las reservas con filtros |
+
+**Frontend refactorizado:**
+- `admin.html` (288 líneas, +37 vs V1.0) — 2 tabs:
+  - Tab "👥 Residentes" (default): secciones existentes envueltas (buscar/resumen/tags/llaves/historial).
+  - Tab "📦 Mudanzas" (NUEVO): filtros + tabla renderizada.
+- `js/admin.js` (496 líneas, +129 vs V1.0) — agregadas: navResidentes, navMudanzas, cargarMudanzasList, renderMudanzasTable, apiGet, fetchJson (local).
+
+### 20.3 Endpoint `adminListarReservasMudanzen`
+
+```
+Input:    ?token=ADMIN_TOKEN&estado=Confirmada&torre=Naranja&proxDias=8
+Filtros:
+  - estado ∈ {Confirmada, Cancelada, Todas} (opcional, default Todas)
+  - torre ∈ {Naranja, Amarilla, Verde, Azul} (opcional, default Todas)
+  - proxDias ∈ [1-60] (opcional; calcula rango hoy → hoy+N)
+
+Output:  {ok, total, filtros:{estado, torre, proxDias, fechaDesde, fechaHasta},
+          reservas:[{id, numForm, apto, torre, ascensor, tipoMudanza, fecha,
+                    horaInicio, horaFin, nombreSolicitante, ccSolicitante,
+                    celular, correo, empresa, placa, observaciones, estado,
+                    fechaReservaRaw}]}
+
+Notas:
+- Admin ve TODAS las reservas (no solo del numForm como misReservas).
+- Filtro torre es INDIVIDUAL (Naranja vs Amarilla por separado).
+- Sin paginación (volumen esperado: ≤ 100 reservas/mes).
+- NO envía emails.
+- Reusa getMudanzasSheet(), normalizarHora(), formatDateOnly() de V17.
+```
+
+### 20.4 Decisiones de diseño
+
+| Decisión | Razón |
+|---|---|
+| Solo 2 tabs (Residentes + Mudanzas) | Santa Sofía no tiene Salón Social |
+| Filtro torre INDIVIDUAL (no por par) | Admin puede querer ver específicamente Naranja vs Amarilla |
+| NO acciones de admin en mudanzas | El residente cancela su propia reserva |
+| Default estado=Confirmada | Más relevante para planning |
+| Default proxDias=8 | Balance entre "todo" y "muy específico" |
+| NO paginación | Volumen esperado pequeño |
+
+### 20.5 Pruebas E2E verificadas
+
+- Carga admin.html → 2 tabs visibles (default Residentes)
+- Click tab Mudanzas → filtros cargados, tabla con 3 reservas (MD-0001/2/3)
+- Filtro estado=Cancelada → 3 filas
+- Filtro torre=Naranja → 2 filas (MD-0001 + MD-0003)
+- Filtro proxDias=8 → 3 filas
+- Click tab Residentes → secciones originales intactas (buscar/resumen/tags/llaves/historial)
+- Buscar apto 1122 → muestra datos Yazmin Rocha (sin cambios funcionales)
+
+### 20.6 Deploy Apps Script (cronología)
+
+| Versión | Fecha | Cambio |
+|---|---|---|
+| V17 | 04-Oct-2026 18:19 | + endpoint misReservas |
+| V18 | 04-Oct-2026 19:03 | + endpoint adminListarReservasMudanzen (admin v2.0) |
+
+### 20.8 Referencias
+
+- `docs/spec-admin-mudanzas.md` — spec completa del admin v2.0 (484 líneas)
+- `apps-script/Codigo.gs` — función adminListarReservasMudanzen (líneas 1849-1928)
+- `admin.html` — tabs navegación + filtros mudanzas
+- `js/admin.js` — funciones navResidentes/navMudanzas/cargarMudanzasList/renderMudanzasTable

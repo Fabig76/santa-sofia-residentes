@@ -33,6 +33,15 @@ Arquitectura:
 - **Reglas:** 2 días calendario de anticipación, slots L-V (08-10,10-12,13-15,15-17), sábado (08-10,10-12), domingo no hay servicio.
 - **OPCIÓN B** — Las 4 torres (Naranja, Amarilla, Verde, Azul) están agrupadas en 2 pares que comparten ascensor: Naranja+Amarilla, Verde+Azul. Un slot ocupado en una torre bloquea el mismo slot en la otra torre del par.
 
+**Deploy Admin v2.0** (05-Oct-2026, Apps Script Versión 18):
+- **Backend V18** — 1 endpoint nuevo:
+  - `?action=adminListarReservasMudanzas` (GET con ADMIN_TOKEN): lista TODAS las reservas con filtros opcionales: estado, torre, proxDias. Reusa funciones del V17 (getMudanzasSheet, normalizarHora, formatDateOnly).
+- **Frontend admin.html refactorizado** — 2 tabs (patrón Cerro Azul, SIN Salón Social porque no aplica a Santa Sofía):
+  - Tab "👥 Residentes" — secciones existentes envueltas (buscar/resumen/tags/llaves/historial, sin cambios funcionales).
+  - Tab "📦 Mudanzas" (NUEVO) — lista con filtros: estado (Confirmada/Cancelada/Todas, default Confirmada), torre (Naranja/Amarilla/Verde/Azul/Todas), proxDias (1-60, default 8). Tabla con todas las reservas.
+- **js/admin.js** — agregadas: navResidentes, navMudanzas, cargarMudanzasList, renderMudanzasTable, apiGet, fetchJson (local, replica del patrón módulo mudanzas). El adminListarReservasMudanzen funciona con retry por cold start MailApp.
+- Admin solo ve (NO cancela desde admin — eso lo hace el residente).
+
 **Deploy v2.1** (16-Sep-2026, Versión 15 Apps Script + commit `9ee4a12`):
 - **Backend v1.9** (Versión 15, Apps Script) — Sección 3 "Autorización parqueadero a tercero" reescrita: pasa de 3 inputs simples (Nombre/Apto/Celular) a **2 filas × 6 inputs** (N°Parqueadero texto libre / Tipo Moto o Carro / Placa autorizado / Nombre / Apto / Celular). Sheet Registros expandido de 191 → 203 columnas (12 nuevas v[191-202]).
 - **Frontend v2.1** (commit `9ee4a12`) — Fix estético de la sección 3: asteriscos rojos quitados (la sección es totalmente opcional, hay residentes que no autorizan parqueadero a nadie), labels acortados para 1 línea, grid uniforme de 6 columnas (115px cada una), inputs/selects a 38px de alto fijo, padding más generoso, texto de ayuda en itálica bajo cada fila.
@@ -100,8 +109,9 @@ Los residentes pueden reservar el ascensor de mudanzas desde la pestaña "Agenda
 
 - `docs/GUIA-PROYECTO-SANTA-SOFIA.md` — guía completa del proyecto (705 líneas)
 - `docs/SESIONES.md` — bitácora cronológica de fixes y eventos relevantes
-- `docs/spec-mudanzas.md` — spec del módulo de mudanzas (590 líneas, OPCIÓN B)
+- `docs/spec-mudanzas.md` — spec del módulo de mudanzas (633 líneas, OPCIÓN B)
 - `docs/auditoria-f5-mudanzas.md` — auditoría del frontend mudanzas (F5)
+- `docs/spec-admin-mudanzas.md` — spec del admin v2.0 con tab Mudanzas (F9)
 - `manual-residentes.html` — manual de uso para residentes
 
 ## Nota sobre `apps-script/Codigo.gs`
