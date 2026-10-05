@@ -178,6 +178,15 @@
 
     <div id="alert-admin" class="alert hidden" role="alert"></div>
 
+    <!-- ====== NAVEGACIÓN DE TABS ====== -->
+    <nav class="admin-tabs" style="display:flex; gap:8px; margin-bottom:16px; border-bottom:2px solid var(--gris-borde); padding-bottom:0;">
+      <button type="button" class="btn btn-primary" id="btnNavResidentes" style="border-radius:8px 8px 0 0; margin-bottom:-2px;">👥 Residentes</button>
+      <button type="button" class="btn btn-secondary" id="btnNavMudanzas" style="border-radius:8px 8px 0 0; margin-bottom:-2px;">📦 Mudanzas</button>
+    </nav>
+
+    <!-- ====== TAB 1: RESIDENTES (secciones actuales) ====== -->
+    <div id="tab-residentes-admin">
+
     <!-- ====== BUSCAR APTO ====== -->
     <div class="seccion-admin">
       <h3>🔍 Buscar apartamento</h3>
@@ -233,6 +242,34 @@
     <div id="seccion-historial" class="seccion-admin" style="display:none;">
       <h3>📜 Historial de eventos <span class="contador" id="historial-count">0</span></h3>
       <div id="historial-container"></div>
+    </div>
+
+    </div><!-- /#tab-residentes-admin -->
+
+    <!-- ====== TAB 2: MUDANZAS (NUEVO) ====== -->
+    <div id="tab-mudanzas-admin" class="hidden">
+      <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center; background:var(--azul-claro); padding:12px; border-radius:6px;">
+        <label><strong>Estado:</strong></label>
+        <select id="mudanzasEstadoFilter" style="padding:6px 10px;">
+          <option value="Confirmada" selected>Confirmada</option>
+          <option value="Cancelada">Cancelada</option>
+          <option value="Todas">Todas</option>
+        </select>
+        <label><strong>Torre:</strong></label>
+        <select id="mudanzasTorreFilter" style="padding:6px 10px;">
+          <option value="" selected>Todas</option>
+          <option value="Naranja">Naranja</option>
+          <option value="Amarilla">Amarilla</option>
+          <option value="Verde">Verde</option>
+          <option value="Azul">Azul</option>
+        </select>
+        <label style="display:flex; align-items:center; gap:4px;">
+          <input type="checkbox" id="mudanzasProximosDiasCheck" checked>
+          <span>Solo próximos <input type="number" id="mudanzasProximosDiasInput" value="8" min="1" max="60" style="width:50px; padding:2px 6px;"> días</span>
+        </label>
+        <button type="button" class="btn btn-primary" id="btnCargarMudanzas">🔄 Actualizar lista</button>
+      </div>
+      <div id="mudanzasList"></div>
     </div>
 
   </div>
