@@ -653,7 +653,7 @@ function mostrarExito(data) {
   if (data.editMode) {
     $('#success-title').textContent = '¡Registro actualizado!';
     $('#success-num-form').textContent = data.numForm;
-    $('#success-advice').innerHTML = '<strong>N° de formulario:</strong> ' + data.numForm + ' (sigue siendo el mismo).';
+    $('#success-advice').innerHTML = '<strong>N° de formulario:</strong> ' + escapeHtml(data.numForm) + ' (sigue siendo el mismo).';
   } else {
     $('#success-title').textContent = '¡Registro creado exitosamente!';
     $('#success-num-form').textContent = data.numForm;
@@ -1085,8 +1085,8 @@ const M = {
     for (const s of slotsDelDia) {
       const cls = s.disponible ? 'mud-slot-disponible' : 'mud-slot-ocupado';
       const sel = (s.horaInicio === this.state.horaInicio) ? ' mud-slot-seleccionado' : '';
-      const label = s.reservadoPor ? s.horaInicio + '-' + s.horaFin + '<br><small>(' + s.reservadoPor + ')</small>' : s.horaInicio + ' - ' + s.horaFin;
-      html += '<button type="button" class="mud-slot ' + cls + sel + '" data-hora="' + s.horaInicio + '" data-fin="' + s.horaFin + '" ' + (!s.disponible ? 'disabled' : '') + '>' + label + '</button>';
+      const label = s.reservadoPor ? escapeHtml(s.horaInicio) + '-' + escapeHtml(s.horaFin) + '<br><small>(' + escapeHtml(s.reservadoPor) + ')</small>' : escapeHtml(s.horaInicio) + ' - ' + escapeHtml(s.horaFin);
+      html += '<button type="button" class="mud-slot ' + cls + sel + '" data-hora="' + escapeHtml(s.horaInicio) + '" data-fin="' + escapeHtml(s.horaFin) + '" ' + (!s.disponible ? 'disabled' : '') + '>' + label + '</button>';
     }
     html += '</div>';
     if (this.state.fecha) {
@@ -1162,10 +1162,10 @@ const M = {
   showConfirmacion(data) {
     $('#mudOkId').textContent = data.idReserva;
     const fecha = this.formatFechaLarga(data.fecha);
-    let detalle = '<strong>Fecha:</strong> ' + fecha + '<br>' +
-                  '<strong>Horario:</strong> ' + data.horaInicio + ' a ' + data.horaFin + '<br>' +
-                  '<strong>Torre:</strong> ' + data.torre + ', Ascensor A';
-    if (data.par) detalle += ' (par ' + data.par + ')';
+    let detalle = '<strong>Fecha:</strong> ' + escapeHtml(fecha) + '<br>' +
+                  '<strong>Horario:</strong> ' + escapeHtml(data.horaInicio) + ' a ' + escapeHtml(data.horaFin) + '<br>' +
+                  '<strong>Torre:</strong> ' + escapeHtml(data.torre) + ', Ascensor A';
+    if (data.par) detalle += ' (par ' + escapeHtml(data.par) + ')';
     $('#mudOkDetalle').innerHTML = detalle;
     this.showVista('ok');
   },
@@ -1211,13 +1211,13 @@ const M = {
           '<div class="mud-estado-badge ' + badgeClass + '">' + r.estado + '</div>' +
         '</div>' +
         '<div class="mud-reserva-detail">' +
-          '<strong>Fecha:</strong> ' + this.formatFechaLarga(r.fecha) + '<br>' +
-          '<strong>Horario:</strong> ' + r.horaInicio + ' - ' + r.horaFin + '<br>' +
-          '<strong>Tipo:</strong> ' + r.tipoMudanza + '<br>' +
-          '<strong>Torre:</strong> ' + r.torre + ', Ascensor ' + r.ascensor + '<br>' +
-          (r.empresa ? '<strong>Empresa:</strong> ' + r.empresa + '<br>' : '') +
-          (r.placa ? '<strong>Placa:</strong> ' + r.placa + '<br>' : '') +
-          (r.observaciones ? '<strong>Obs:</strong> ' + r.observaciones : '') +
+          '<strong>Fecha:</strong> ' + escapeHtml(this.formatFechaLarga(r.fecha)) + '<br>' +
+          '<strong>Horario:</strong> ' + escapeHtml(r.horaInicio) + ' - ' + escapeHtml(r.horaFin) + '<br>' +
+          '<strong>Tipo:</strong> ' + escapeHtml(r.tipoMudanza) + '<br>' +
+          '<strong>Torre:</strong> ' + escapeHtml(r.torre) + ', Ascensor ' + escapeHtml(r.ascensor) + '<br>' +
+          (r.empresa ? '<strong>Empresa:</strong> ' + escapeHtml(r.empresa) + '<br>' : '') +
+          (r.placa ? '<strong>Placa:</strong> ' + escapeHtml(r.placa) + '<br>' : '') +
+          (r.observaciones ? '<strong>Obs:</strong> ' + escapeHtml(r.observaciones) : '') +
         '</div>' +
         (cancelable ? '<div class="mud-reserva-actions"><button class="btn btn-secondary" data-id="' + r.id + '">✕ Cancelar reserva</button></div>' : '') +
       '</div>';
@@ -1313,6 +1313,14 @@ async function fetchJson(url, retries) {
 }
 
 function enc(s) { return encodeURIComponent(s); }
+
+// Escape HTML para prevenir XSS cuando se renderiza data del Sheet
+// (idéntico a la implementación en vigilantes.js y admin.js)
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
 
 // Init módulo M cuando carga el DOM
 document.addEventListener('DOMContentLoaded', () => {

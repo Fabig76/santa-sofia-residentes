@@ -411,6 +411,49 @@ function doGet(e) {
       });
     }
 
+    // ==== MUDANZAS — verificar propietario (SS-XXXX + apto + cc) ====
+    if (action === 'verificarPropietario') {
+      const numForm = String(e.parameter.numForm || '').trim();
+      const apto = String(e.parameter.apto || '').trim();
+      const ccProp = String(e.parameter.ccProp || '');
+      return jsonOut(verificarPropietarioMudanza(numForm, apto, ccProp));
+    }
+
+    // ==== MUDANZAS — disponibilidad de slots (por torre, OPCIÓN B bloqueo por par) ====
+    if (action === 'dispMudanzas') {
+      const torre = String(e.parameter.torre || '').trim();
+      const ascensor = String(e.parameter.ascensor || 'A').trim();
+      const desde = String(e.parameter.desde || '').trim();
+      const hasta = String(e.parameter.hasta || '').trim();
+      return jsonOut(dispMudanzas(torre, ascensor, desde, hasta));
+    }
+
+    // ==== MUDANZAS — listar reservas del numForm/apto (vista "mis reservas") ====
+    if (action === 'misReservas') {
+      const numForm = String(e.parameter.numForm || '').trim();
+      const apto = String(e.parameter.apto || '').trim();
+      const ccProp = String(e.parameter.ccProp || '');
+      return jsonOut(misReservas(numForm, apto, ccProp));
+    }
+
+    // ==== MUDANZAS-ADMIN — listar TODAS las reservas (panel admin) ====
+    if (action === 'adminListarReservasMudanzas') {
+      const token = String(e.parameter.token || '').trim();
+      if (!checkAdminToken(token)) return jsonOut({ ok: false, error: 'Token invalido.' });
+      const estado = String(e.parameter.estado || '').trim();
+      const torre = String(e.parameter.torre || '').trim();
+      const proxDias = String(e.parameter.proxDias || '').trim();
+      return jsonOut(adminListarReservasMudanzas(estado, torre, proxDias));
+    }
+
+    // ==== VIGILANTE — listar mudanzas por fecha (F10) ====
+    if (action === 'vigilanteVerMudanzas') {
+      const token = String(e.parameter.token || '').trim();
+      if (!checkVigilantesToken(token)) return jsonOut({ ok: false, error: 'Token invalido.' });
+      const fecha = String(e.parameter.fecha || '').trim();
+      return jsonOut(vigilanteVerMudanzas(fecha));
+    }
+
     return jsonOut({ ok: false, error: 'Acción no reconocida.' });
   } catch (err) {
     return jsonOut({ ok: false, error: String(err && err.message || err) });
@@ -553,6 +596,23 @@ function doPost(e) {
       }
 
       return jsonOut({ ok: false, error: 'Tipo de evento no reconocido: ' + tipo });
+    }
+
+    // ==== MUDANZAS — reservar ====
+    if (action === 'reservarMudanza') {
+      return jsonOut(reservarMudanza(payload));
+    }
+
+    // ==== MUDANZAS — cancelar ====
+    if (action === 'cancelarMudanza') {
+      return jsonOut(cancelarMudanza(payload));
+    }
+
+    // ==== VIGILANTE — check-in de mudanza (F10) ====
+    if (action === 'vigilanteCheckMudanza') {
+      const token = String(payload.token || '').trim();
+      if (!checkVigilantesToken(token)) return jsonOut({ ok: false, error: 'Token invalido.' });
+      return jsonOut(vigilanteCheckMudanza(payload));
     }
 
     const result = submitRecord(payload);
@@ -1182,4 +1242,861 @@ function jsonOut(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// =====================================================================
+// Santa Sofía — Módulo de Agendamiento de Mudanzas
+// Agregado 04-Oct-2026 (spec-mudanzas.md v1.0.0, OPCIÓN B)
+//
+// Reglas:
+//   - 4 torres (Naranja, Amarilla, Verde, Azul) agrupadas en 2 pares
+//     que comparten ascensor: Naranja+Amarilla, Verde+Azul
+//   - Solo "A" habilitado para mudanzas; "B" bloqueado
+//   - L-V: 08-10, 10-12, 13-15, 15-17 (4 slots de 2h)
+//   - Sábado: 08-10, 10-12 (2 slots, solo mañana)
+//   - Domingo: no hay servicio
+//   - Anticipación mínima: 2 días calendario completos
+//   - Cancelación permitida: hasta 24h antes
+//   - Solo Propietario o Tenedor / Otro pueden agendar (CC validada contra Sheet)
+// =====================================================================
+
+const MUDANZAS_SHEET_NAME     = 'Mudanzas';
+const MUDANZAS_NUM_COLS       = 22;
+const MUDANZAS_HEADER_ROW     = 1;
+const MUDANZAS_TORRES         = ['Naranja', 'Amarilla', 'Verde', 'Azul'];
+const MUDANZAS_ASCENSOR       = 'A';
+const MUDANZAS_ANTICIPACION_DIAS = 2;
+const MUDANZAS_CANCELACION_HORAS = 24;
+const MUDANZAS_LOCK_TIMEOUT_MS   = 30000;
+const MUDANZAS_CANCELADAS_RECIENTES_DIAS = 30;
+const MUDANZAS_CHECK_REALIZADA    = 'Sí';
+const MUDANZAS_CHECK_NO_REALIZADA = 'No';
+const MUDANZAS_EMAIL_ADMIN      = 'santasofia.clubresidencial@gmail.com';
+
+// OPCIÓN B — Pares de torres (comparten ascensor)
+const MUDANZAS_PARES = [
+  { nombre: 'Naranja-Amarilla', torres: ['Naranja', 'Amarilla'] },
+  { nombre: 'Verde-Azul',       torres: ['Verde',   'Azul']      },
+];
+
+// Slots (hardcoded, NO se consultan de Sheet)
+const MUDANZAS_SLOTS_LUN_VIE = [
+  ['08:00', '10:00'],
+  ['10:00', '12:00'],
+  ['13:00', '15:00'],
+  ['15:00', '17:00']
+];
+const MUDANZAS_SLOTS_SABADO = [
+  ['08:00', '10:00'],
+  ['10:00', '12:00']
+];
+const MUDANZAS_SLOTS_DOMINGO = [];
+
+// Columnas de la pestaña Mudanzas (A..S)
+const COL_MUD_ID       = 0;  // A
+const COL_MUD_NUMFORM  = 1;  // B
+const COL_MUD_APTO     = 2;  // C
+const COL_MUD_TIPO     = 3;  // D
+const COL_MUD_TORRE    = 4;  // E
+const COL_MUD_ASCENSOR = 5;  // F
+const COL_MUD_FECHA    = 6;  // G
+const COL_MUD_HORA_INI = 7;  // H
+const COL_MUD_HORA_FIN = 8;  // I
+const COL_MUD_NOMBRE   = 9;  // J
+const COL_MUD_CC       = 10; // K
+const COL_MUD_CEL      = 11; // L
+const COL_MUD_CORREO   = 12; // M
+const COL_MUD_EMPRESA  = 13; // N
+const COL_MUD_PLACA    = 14; // O
+const COL_MUD_OBS      = 15; // P
+const COL_MUD_FECHARES = 16; // Q
+const COL_MUD_ESTADO   = 17; // R
+const COL_MUD_HASH     = 18; // S
+// F10 — columnas para check-in del vigilante
+const COL_MUD_REALIZADA = 19; // T
+const COL_MUD_FECHACHECK = 20; // U
+const COL_MUD_VIGILANTE  = 21; // V
+
+// ---------------------------------------------------------------------
+// Helpers OPCIÓN B (pares de torres)
+// ---------------------------------------------------------------------
+function parDeTorre(torre) {
+  for (const p of MUDANZAS_PARES) {
+    if (p.torres.indexOf(torre) !== -1) return p.nombre;
+  }
+  return null;
+}
+
+function torresDelPar(parNombre) {
+  for (const p of MUDANZAS_PARES) {
+    if (p.nombre === parNombre) return p.torres;
+  }
+  return [];
+}
+
+// ---------------------------------------------------------------------
+// Helpers generales
+// ---------------------------------------------------------------------
+function normalizarCC(cc) {
+  return String(cc || '').replace(/[^0-9]/g, '').trim();
+}
+
+function getMudanzasSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sh = ss.getSheetByName(MUDANZAS_SHEET_NAME);
+  if (!sh) {
+    // Pestaña no existe — la creamos idempotentemente con headers
+    sh = ss.insertSheet(MUDANZAS_SHEET_NAME);
+    const headers = [
+      'ID Reserva',         // A
+      'N° Formulario',      // B
+      'N° Apartamento',     // C
+      'Tipo Mudanza',       // D
+      'Torre',              // E
+      'Ascensor',           // F
+      'Fecha Mudanza',      // G
+      'Hora Inicio',        // H
+      'Hora Fin',           // I
+      'Nombre Propietario', // J
+      'CC Propietario',     // K
+      'Celular',            // L
+      'Correo',             // M
+      'Empresa Mudanza',    // N
+      'Placa Vehiculo',     // O
+      'Observaciones',      // P
+      'Fecha Reserva',      // Q
+      'Estado',             // R
+      'Hash Dedupe',        // S
+      'Realizada',          // T (F10)
+      'Fecha Check',        // U (F10)
+      'Vigilante',          // V (F10)
+    ];
+    sh.getRange(MUDANZAS_HEADER_ROW, 1, 1, MUDANZAS_NUM_COLS).setValues([headers]);
+    sh.getRange(MUDANZAS_HEADER_ROW, 1, 1, MUDANZAS_NUM_COLS)
+      .setFontWeight('bold')
+      .setBackground('#DCE6F1')
+      .setFontColor('#1F4E79');
+    sh.setFrozenRows(MUDANZAS_HEADER_ROW);
+    return sh;
+  }
+  // F10 — Pestaña existe: si tiene menos de 22 cols, expandir con headers T/U/V
+  // (sin tocar datos existentes — solo agrega columnas vacías a la derecha)
+  const lastCol = sh.getLastColumn();
+  if (lastCol < MUDANZAS_NUM_COLS) {
+    sh.insertColumnsAfter(lastCol, MUDANZAS_NUM_COLS - lastCol);
+    const headersExtra = [
+      'Realizada',    // T
+      'Fecha Check',  // U
+      'Vigilante',    // V
+    ];
+    sh.getRange(MUDANZAS_HEADER_ROW, lastCol + 1, 1, headersExtra.length).setValues([headersExtra]);
+    sh.getRange(MUDANZAS_HEADER_ROW, lastCol + 1, 1, headersExtra.length)
+      .setFontWeight('bold')
+      .setBackground('#DCE6F1')
+      .setFontColor('#1F4E79');
+  }
+  return sh;
+}
+
+function formatDateOnly(d) {
+  if (!d) return '';
+  if (d instanceof Date) {
+    return Utilities.formatDate(d, 'America/Bogota', 'yyyy-MM-dd');
+  }
+  const s = String(d);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return s;
+}
+
+function normalizarHora(h) {
+  if (h == null || h === '') return '';
+  if (h instanceof Date) {
+    return Utilities.formatDate(h, 'America/Bogota', 'HH:mm');
+  }
+  const s = String(h).trim();
+  const m = s.match(/^(\d{1,2}):(\d{2})/);
+  if (m) {
+    return m[1].padStart(2, '0') + ':' + m[2];
+  }
+  return s;
+}
+
+function nextReservaId() {
+  const sheet = getMudanzasSheet();
+  const last = sheet.getLastRow();
+  if (last < MUDANZAS_HEADER_ROW + 1) return 'MD-0001';
+  const ids = sheet.getRange(MUDANZAS_HEADER_ROW + 1, COL_MUD_ID + 1, last - MUDANZAS_HEADER_ROW, 1).getValues();
+  let max = 0;
+  for (const r of ids) {
+    const s = String(r[0] || '');
+    const m = s.match(/^MD-(\d+)$/);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > max) max = n;
+    }
+  }
+  return 'MD-' + String(max + 1).padStart(4, '0');
+}
+
+function generarSlotsTeoricos(desde, hasta) {
+  const slots = [];
+  const d = new Date(desde + 'T12:00:00');
+  const fin = new Date(hasta + 'T12:00:00');
+  while (d <= fin) {
+    const dow = d.getDay();
+    const slotsDelDia = dow === 0 ? MUDANZAS_SLOTS_DOMINGO
+                      : dow === 6 ? MUDANZAS_SLOTS_SABADO
+                      : MUDANZAS_SLOTS_LUN_VIE;
+    const fechaStr = Utilities.formatDate(d, 'America/Bogota', 'yyyy-MM-dd');
+    for (const [hi, hf] of slotsDelDia) {
+      slots.push({ fecha: fechaStr, horaInicio: hi, horaFin: hf });
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return slots;
+}
+
+function findReservaById(idReserva) {
+  const sheet = getMudanzasSheet();
+  const last = sheet.getLastRow();
+  if (last < MUDANZAS_HEADER_ROW + 1) return null;
+  const data = sheet.getRange(MUDANZAS_HEADER_ROW + 1, 1, last - MUDANZAS_HEADER_ROW, MUDANZAS_NUM_COLS).getValues();
+  for (let i = 0; i < data.length; i++) {
+    if (String(data[i][COL_MUD_ID] || '').trim() === String(idReserva || '').trim()) {
+      return { rowNumber: MUDANZAS_HEADER_ROW + 1 + i, values: data[i] };
+    }
+  }
+  return null;
+}
+
+// OPCIÓN B: busca reservas en el PAR al que pertenece la torre
+// (no solo torreReportada == torreInput — bloquea las 2 torres del par)
+function findReservasEnRango(torre, ascensor, desde, hasta) {
+  const sheet = getMudanzasSheet();
+  const last = sheet.getLastRow();
+  if (last < MUDANZAS_HEADER_ROW + 1) return [];
+  const data = sheet.getRange(MUDANZAS_HEADER_ROW + 1, 1, last - MUDANZAS_HEADER_ROW, MUDANZAS_NUM_COLS).getValues();
+
+  // Determinar las torres del par (OPCIÓN B)
+  const par = parDeTorre(torre);
+  const torresPar = par ? torresDelPar(par) : [torre];
+
+  const result = [];
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    if (String(row[COL_MUD_ESTADO]).trim() !== 'Confirmada') continue;
+    const torreRow = String(row[COL_MUD_TORRE]).trim();
+    if (torresPar.indexOf(torreRow) === -1) continue;  // ← clave OPCIÓN B
+    if (String(row[COL_MUD_ASCENSOR]).trim() !== String(ascensor)) continue;
+    const fecha = formatDateOnly(row[COL_MUD_FECHA]);
+    if (!fecha) continue;
+    if (fecha >= desde && fecha <= hasta) {
+      result.push({
+        rowNumber: MUDANZAS_HEADER_ROW + 1 + i,
+        id: String(row[COL_MUD_ID] || ''),
+        torreReportada: torreRow,
+        fecha: fecha,
+        horaInicio: normalizarHora(row[COL_MUD_HORA_INI]),
+        horaFin: normalizarHora(row[COL_MUD_HORA_FIN])
+      });
+    }
+  }
+  return result;
+}
+
+// OPCIÓN B: hash sobre PAR (no sobre torre individual)
+function hashReserva(par, ascensor, fecha, horaInicio) {
+  const input = par + '|' + ascensor + '|' + fecha + '|' + horaInicio;
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, input);
+  return digest.map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('').slice(0, 16);
+}
+
+// ---------------------------------------------------------------------
+// Endpoint: verificarPropietario (verifica SS-XXXX + apto + ccProp)
+// ---------------------------------------------------------------------
+function verificarPropietarioMudanza(numForm, apto, ccProp) {
+  numForm = String(numForm || '').trim();
+  apto = String(apto || '').trim();
+  ccProp = normalizarCC(ccProp);
+
+  if (!numForm) return { ok: false, error: 'Falta N° de formulario.' };
+  if (!apto) return { ok: false, error: 'Falta N° de apartamento.' };
+  if (!ccProp) return { ok: false, error: 'Falta cédula del propietario.' };
+
+  // Asegura que la pestaña Mudanzas exista (idempotente)
+  try { getMudanzasSheet(); } catch (e) {}
+
+  const found = findRowByNumFormAndApto(numForm, apto);
+  if (!found) {
+    return { ok: false, error: 'No se encontró ningún registro con ese N° de formulario y N° de apartamento.' };
+  }
+
+  // Solo Propietario o Tenedor / Otro pueden agendar mudanzas
+  // (NO se permite Arrendatario; no se Integra "Inmobiliaria" como nuevo valor)
+  const diligencia = String(found.values[4] || '').trim();
+  if (diligencia !== 'Propietario' && diligencia !== 'Tenedor / Otro') {
+    return { ok: false, error: 'Esta autorización debe ser solicitada por el propietario del inmueble o por el encargado autorizado, no por un arrendatario. Contacte al propietario.' };
+  }
+
+  const ccSheet = normalizarCC(found.values[6]);
+  if (ccSheet !== ccProp) {
+    return { ok: false, error: 'La cédula ingresada no coincide con el propietario registrado. Verifique o contacte a la administración.' };
+  }
+
+  return {
+    ok: true,
+    diligencia: diligencia,
+    numForm: numForm,
+    apto: apto,
+    nombreProp: String(found.values[5] || ''),
+    ccProp: ccSheet,
+    correoProp: String(found.values[7] || ''),
+    celProp: String(found.values[8] || '')
+  };
+}
+
+// ---------------------------------------------------------------------
+// Endpoint: dispMudanzas (disponibilidad de slots, OPCIÓN B por par)
+// ---------------------------------------------------------------------
+function dispMudanzas(torre, ascensor, desde, hasta) {
+  torre = String(torre || '').trim();
+  ascensor = String(ascensor || '').trim().toUpperCase();
+  desde = String(desde || '').trim();
+  hasta = String(hasta || '').trim();
+
+  if (MUDANZAS_TORRES.indexOf(torre) === -1) {
+    return { ok: false, error: 'Torre inválida. Debe ser Naranja, Amarilla, Verde o Azul.' };
+  }
+  if (ascensor !== MUDANZAS_ASCENSOR) {
+    return { ok: false, error: 'Solo el ascensor A está habilitado para mudanzas. El ascensor B está reservado para circulación de residentes.' };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(desde)) {
+    return { ok: false, error: 'Fecha "desde" inválida. Use formato YYYY-MM-DD.' };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(hasta)) {
+    return { ok: false, error: 'Fecha "hasta" inválida. Use formato YYYY-MM-DD.' };
+  }
+  if (desde > hasta) {
+    return { ok: false, error: 'Fecha "desde" no puede ser posterior a "hasta".' };
+  }
+
+  const par = parDeTorre(torre);
+  const slotsTeoricos = generarSlotsTeoricos(desde, hasta);
+  const reservas = findReservasEnRango(torre, ascensor, desde, hasta);
+
+  const hoy = new Date();
+  const minFecha = new Date(hoy);
+  minFecha.setDate(minFecha.getDate() + MUDANZAS_ANTICIPACION_DIAS);
+  const minFechaStr = Utilities.formatDate(minFecha, 'America/Bogota', 'yyyy-MM-dd');
+
+  const resultado = slotsTeoricos.map(s => {
+    const reservado = reservas.find(r => r.fecha === s.fecha && r.horaInicio === s.horaInicio);
+    const muyPronto = s.fecha < minFechaStr;
+    return {
+      fecha: s.fecha,
+      horaInicio: s.horaInicio,
+      horaFin: s.horaFin,
+      disponible: !reservado && !muyPronto,
+      reservadoPor: reservado ? reservado.id : null
+    };
+  });
+
+  return { ok: true, torre: torre, par: par, ascensor: ascensor, minFecha: minFechaStr, slots: resultado };
+}
+
+// ---------------------------------------------------------------------
+// Endpoint: reservarMudanza (OPCIÓN B bloqueo por par)
+// ---------------------------------------------------------------------
+function reservarMudanza(data) {
+  const verif = verificarPropietarioMudanza(data.numForm, data.apto, data.ccProp);
+  if (!verif.ok) return verif;
+
+  const torre = String(data.torre || '').trim();
+  const ascensor = MUDANZAS_ASCENSOR;
+  const fecha = String(data.fecha || '').trim();
+  const horaInicio = String(data.horaInicio || '').trim();
+  const horaFin = String(data.horaFin || '').trim();
+  const tipoMudanza = String(data.tipoMudanza || '').trim();
+
+  if (MUDANZAS_TORRES.indexOf(torre) === -1) {
+    return { ok: false, error: 'Torre inválida. Debe ser Naranja, Amarilla, Verde o Azul.' };
+  }
+  if (!['Salida', 'Ingreso'].includes(tipoMudanza)) {
+    return { ok: false, error: 'Tipo de mudanza inválido. Debe ser Salida o Ingreso.' };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    return { ok: false, error: 'Fecha inválida. Use formato YYYY-MM-DD.' };
+  }
+
+  const dow = new Date(fecha + 'T12:00:00').getDay();
+  const slotsPermitidos = dow === 0 ? MUDANZAS_SLOTS_DOMINGO
+                        : dow === 6 ? MUDANZAS_SLOTS_SABADO
+                        : MUDANZAS_SLOTS_LUN_VIE;
+  const slotValido = slotsPermitidos.find(s => s[0] === horaInicio && s[1] === horaFin);
+  if (!slotValido) {
+    return { ok: false, error: 'El horario seleccionado no es válido. Domingo no hay servicio; verifique el día y la hora.' };
+  }
+
+  const hoy = new Date();
+  const minFecha = new Date(hoy);
+  minFecha.setDate(minFecha.getDate() + MUDANZAS_ANTICIPACION_DIAS);
+  const minFechaStr = Utilities.formatDate(minFecha, 'America/Bogota', 'yyyy-MM-dd');
+  if (fecha < minFechaStr) {
+    return { ok: false, error: 'Las mudanzas deben agendarse con al menos ' + MUDANZAS_ANTICIPACION_DIAS + ' días calendario de anticipación. Próxima fecha disponible: ' + minFechaStr + '.' };
+  }
+
+  if (!verif.correoProp || verif.correoProp.indexOf('@') === -1) {
+    return { ok: false, error: 'El propietario no tiene un correo válido registrado en el formulario de residentes. No se puede enviar la confirmación.' };
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(MUDANZAS_LOCK_TIMEOUT_MS)) {
+    return { ok: false, error: 'Otro residente está reservando en este momento. Por favor intente nuevamente en unos segundos.' };
+  }
+
+  try {
+    // OPCIÓN B: re-validar dentro del lock buscando en TODO EL PAR
+    const reservas = findReservasEnRango(torre, ascensor, fecha, fecha);
+    const duplicado = reservas.find(r => r.horaInicio === horaInicio);
+    if (duplicado) {
+      return { ok: false, error: 'Este horario ya fue reservado por otro residente (de la torre ' + duplicado.torreReportada + '). Por favor seleccione otro.' };
+    }
+
+    const sheet = getMudanzasSheet();
+    const idReserva = nextReservaId();
+    const now = Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd HH:mm:ss');
+    const par = parDeTorre(torre);
+    const hash = hashReserva(par, ascensor, fecha, horaInicio);  // OPCIÓN B: hash por PAR
+
+    const row = new Array(MUDANZAS_NUM_COLS).fill('');
+    row[COL_MUD_ID]       = idReserva;
+    row[COL_MUD_NUMFORM]  = verif.numForm;
+    row[COL_MUD_APTO]     = verif.apto;
+    row[COL_MUD_TIPO]     = tipoMudanza;
+    row[COL_MUD_TORRE]    = torre;
+    row[COL_MUD_ASCENSOR] = ascensor;
+    row[COL_MUD_FECHA]    = fecha;
+    row[COL_MUD_HORA_INI] = horaInicio;
+    row[COL_MUD_HORA_FIN] = horaFin;
+    row[COL_MUD_NOMBRE]   = verif.nombreProp;
+    row[COL_MUD_CC]       = verif.ccProp;
+    row[COL_MUD_CEL]      = verif.celProp;
+    row[COL_MUD_CORREO]   = verif.correoProp;
+    // F11 — Validar longitudes para prevenir DoS y payloads XSS grandes
+    const MAX_EMPRESA = 100;
+    const MAX_PLACA   = 20;
+    const MAX_OBS     = 500;
+    const empresaRaw = String(data.empresa || '').trim();
+    const placaRaw   = String(data.placa || '').trim().toUpperCase();
+    const obsRaw     = String(data.observaciones || '').trim();
+    if (empresaRaw.length > MAX_EMPRESA) {
+      return { ok: false, error: 'Empresa demasiado larga. Máximo ' + MAX_EMPRESA + ' caracteres.' };
+    }
+    if (placaRaw.length > MAX_PLACA) {
+      return { ok: false, error: 'Placa demasiado larga. Máximo ' + MAX_PLACA + ' caracteres.' };
+    }
+    if (obsRaw.length > MAX_OBS) {
+      return { ok: false, error: 'Observaciones demasiado largas. Máximo ' + MAX_OBS + ' caracteres.' };
+    }
+    row[COL_MUD_EMPRESA]  = empresaRaw;
+    row[COL_MUD_PLACA]    = placaRaw;
+    row[COL_MUD_OBS]      = obsRaw;
+    row[COL_MUD_FECHARES] = now;
+    row[COL_MUD_ESTADO]   = 'Confirmada';
+    row[COL_MUD_HASH]     = hash;
+
+    const last = sheet.getLastRow();
+    const targetRow = Math.max(last + 1, MUDANZAS_HEADER_ROW + 1);
+    sheet.getRange(targetRow, 1, 1, MUDANZAS_NUM_COLS).setValues([row]);
+
+    try { enviarEmailConfirmacionAdminMud(row, par); } catch (e) { console.error('Error email admin:', e); }
+    try { enviarEmailConfirmacionResidenteMud(row); } catch (e) { console.error('Error email residente:', e); }
+
+    return {
+      ok: true,
+      idReserva: idReserva,
+      fecha: fecha,
+      horaInicio: horaInicio,
+      horaFin: horaFin,
+      torre: torre,
+      par: par,
+      message: 'Reserva confirmada. Le enviamos un correo de confirmación a ' + verif.correoProp + '.'
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ---------------------------------------------------------------------
+// Endpoint: cancelarMudanza
+// ---------------------------------------------------------------------
+function cancelarMudanza(data) {
+  const idReserva = String(data.idReserva || '').trim();
+  if (!idReserva) return { ok: false, error: 'Falta ID de reserva.' };
+
+  const verif = verificarPropietarioMudanza(data.numForm, data.apto, data.ccProp);
+  if (!verif.ok) return verif;
+
+  const found = findReservaById(idReserva);
+  if (!found) return { ok: false, error: 'No se encontró la reserva con ese ID.' };
+
+  if (String(found.values[COL_MUD_NUMFORM]).trim() !== verif.numForm ||
+      String(found.values[COL_MUD_APTO]).trim() !== verif.apto) {
+    return { ok: false, error: 'Esta reserva no pertenece a este apartamento.' };
+  }
+
+  if (String(found.values[COL_MUD_ESTADO]).trim() !== 'Confirmada') {
+    return { ok: false, error: 'Esta reserva ya no está activa (estado actual: ' + String(found.values[COL_MUD_ESTADO]) + ').' };
+  }
+
+  const fechaMudanza = formatDateOnly(found.values[COL_MUD_FECHA]);
+  const horaInicio = normalizarHora(found.values[COL_MUD_HORA_INI]);
+  const fechaHoraMudanza = new Date(fechaMudanza + 'T' + horaInicio + ':00');
+  const ahora = new Date();
+  const diffHoras = (fechaHoraMudanza - ahora) / (1000 * 60 * 60);
+  if (diffHoras < MUDANZAS_CANCELACION_HORAS) {
+    return { ok: false, error: 'Solo se puede cancelar hasta ' + MUDANZAS_CANCELACION_HORAS + ' horas antes de la mudanza. Contacte a la administración.' };
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(MUDANZAS_LOCK_TIMEOUT_MS)) {
+    return { ok: false, error: 'Otro proceso está activo. Intente nuevamente en unos segundos.' };
+  }
+
+  try {
+    const sheet = getMudanzasSheet();
+    sheet.getRange(found.rowNumber, COL_MUD_ESTADO + 1).setValue('Cancelada');
+
+    const torreRow = String(found.values[COL_MUD_TORRE]).trim();
+    const par = parDeTorre(torreRow);
+    try { enviarEmailCancelacionAdminMud(found.values, par); } catch (e) { console.error('Error email cancel admin:', e); }
+    try { enviarEmailCancelacionResidenteMud(found.values); } catch (e) { console.error('Error email cancel residente:', e); }
+
+    return { ok: true, message: 'Reserva cancelada correctamente.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ---------------------------------------------------------------------
+// Emails
+// ---------------------------------------------------------------------
+function enviarEmailConfirmacionAdminMud(row, par) {
+  const subject = '[Santa Sofía] Nueva reserva de mudanza ' + row[COL_MUD_ID];
+  const body =
+    'Nueva reserva de mudanza registrada:\n\n' +
+    'ID Reserva:    ' + row[COL_MUD_ID] + '\n' +
+    'Propietario:   ' + row[COL_MUD_NOMBRE] + ' (CC ' + row[COL_MUD_CC] + ')\n' +
+    'Apartamento:   ' + row[COL_MUD_APTO] + '\n' +
+    'Celular:       ' + row[COL_MUD_CEL] + '\n' +
+    'Correo:        ' + row[COL_MUD_CORREO] + '\n' +
+    'Tipo:          ' + row[COL_MUD_TIPO] + ' de arrendatario\n' +
+    'Torre:         ' + row[COL_MUD_TORRE] + ' (par ' + par + ')\n' +
+    'Ascensor:      ' + row[COL_MUD_ASCENSOR] + '\n' +
+    'Fecha:         ' + row[COL_MUD_FECHA] + ' ' + row[COL_MUD_HORA_INI] + '-' + row[COL_MUD_HORA_FIN] + '\n' +
+    'Empresa:       ' + (row[COL_MUD_EMPRESA] || '(no indicada)') + '\n' +
+    'Placa:         ' + (row[COL_MUD_PLACA] || '(no indicada)') + '\n' +
+    'Observaciones: ' + (row[COL_MUD_OBS] || '(sin observaciones)') + '\n\n' +
+    '--\nSanta Sofía Club Residencial V.I.S — Sistema de agendamiento de mudanzas\n';
+  MailApp.sendEmail(MUDANZAS_EMAIL_ADMIN, subject, body);
+}
+
+function enviarEmailConfirmacionResidenteMud(row) {
+  const to = row[COL_MUD_CORREO];
+  if (!to || to.indexOf('@') === -1) return;
+  const subject = 'Confirmacion de reserva de mudanza ' + row[COL_MUD_ID];
+  const body =
+    'Hola ' + row[COL_MUD_NOMBRE] + ',\n\n' +
+    'Su reserva de mudanza ha sido confirmada:\n\n' +
+    'ID Reserva:    ' + row[COL_MUD_ID] + '\n' +
+    'Apartamento:   ' + row[COL_MUD_APTO] + '\n' +
+    'Tipo:          ' + row[COL_MUD_TIPO] + ' de arrendatario\n' +
+    'Torre:         ' + row[COL_MUD_TORRE] + '\n' +
+    'Ascensor:      ' + row[COL_MUD_ASCENSOR] + '\n' +
+    'Fecha:         ' + row[COL_MUD_FECHA] + '\n' +
+    'Horario:       ' + row[COL_MUD_HORA_INI] + ' a ' + row[COL_MUD_HORA_FIN] + '\n\n' +
+    'Recuerde: la vigilancia NO permite ingreso en dias festivos, ' +
+    'aunque usted tenga reserva. Verifique que la fecha seleccionada no sea festivo.\n\n' +
+    'Para cancelar su reserva, ingrese nuevamente al formulario con su ' +
+    'N° de formulario, apartamento y cedula del propietario.\n\n' +
+    '--\nSanta Sofía Club Residencial V.I.S — Sistema de agendamiento de mudanzas\n';
+  MailApp.sendEmail(to, subject, body);
+}
+
+function enviarEmailCancelacionAdminMud(row, par) {
+  const subject = '[Santa Sofía] Cancelacion de reserva de mudanza ' + row[COL_MUD_ID];
+  const body =
+    'Se ha ha cancelado la siguiente reserva de mudanza:\n\n' +
+    'ID Reserva:    ' + row[COL_MUD_ID] + '\n' +
+    'Apartamento:   ' + row[COL_MUD_APTO] + '\n' +
+    'Tipo:          ' + row[COL_MUD_TIPO] + '\n' +
+    'Torre:         ' + row[COL_MUD_TORRE] + ' (par ' + par + ')\n' +
+    'Fecha:         ' + row[COL_MUD_FECHA] + ' ' + row[COL_MUD_HORA_INI] + '-' + row[COL_MUD_HORA_FIN] + '\n' +
+    'Cancelada por: ' + row[COL_MUD_NOMBRE] + ' (CC ' + row[COL_MUD_CC] + ')\n';
+  MailApp.sendEmail(MUDANZAS_EMAIL_ADMIN, subject, body);
+}
+
+function enviarEmailCancelacionResidenteMud(row) {
+  const to = row[COL_MUD_CORREO];
+  if (!to || to.indexOf('@') === -1) return;
+  const subject = 'Cancelacion de reserva de mudanza ' + row[COL_MUD_ID];
+  const body =
+    'Hola ' + row[COL_MUD_NOMBRE] + ',\n\n' +
+    'Su reserva de mudanza ' + row[COL_MUD_ID] + ' ha sido cancelada.\n\n' +
+    'Fecha que estaba reservada: ' + row[COL_MUD_FECHA] + ' ' +
+    row[COL_MUD_HORA_INI] + '-' + row[COL_MUD_HORA_FIN] + '\n\n' +
+    'Si necesita reprogramar, ingrese nuevamente al formulario de Santa Sofía.\n\n' +
+    '--\nSanta Sofía Club Residencial V.I.S\n';
+  MailApp.sendEmail(to, subject, body);
+}
+
+// ---------------------------------------------------------------------
+// Endpoint: misReservas (lista todas las reservas del numForm/apto)
+// Agregado 05-Oct-2026 para vista "Mis reservas" del frontend
+// ---------------------------------------------------------------------
+function misReservas(numForm, apto, ccProp) {
+  const verif = verificarPropietarioMudanza(numForm, apto, ccProp);
+  if (!verif.ok) return verif;
+
+  const sheet = getMudanzasSheet();
+  const last = sheet.getLastRow();
+  if (last < MUDANZAS_HEADER_ROW + 1) {
+    return { ok: true, propietario: verif, reservas: [] };
+  }
+  const data = sheet.getRange(MUDANZAS_HEADER_ROW + 1, 1, last - MUDANZAS_HEADER_ROW, MUDANZAS_NUM_COLS).getValues();
+
+  const reservas = [];
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    if (String(row[COL_MUD_NUMFORM]).trim() !== verif.numForm) continue;
+    if (String(row[COL_MUD_APTO]).trim() !== verif.apto) continue;
+
+    reservas.push({
+      id: String(row[COL_MUD_ID] || ''),
+      tipoMudanza: String(row[COL_MUD_TIPO] || ''),
+      torre: String(row[COL_MUD_TORRE] || ''),
+      ascensor: String(row[COL_MUD_ASCENSOR] || ''),
+      fecha: formatDateOnly(row[COL_MUD_FECHA]),
+      horaInicio: normalizarHora(row[COL_MUD_HORA_INI]),
+      horaFin: normalizarHora(row[COL_MUD_HORA_FIN]),
+      empresa: String(row[COL_MUD_EMPRESA] || ''),
+      placa: String(row[COL_MUD_PLACA] || ''),
+      observaciones: String(row[COL_MUD_OBS] || ''),
+      fechaReserva: row[COL_MUD_FECHARES]
+        ? Utilities.formatDate(new Date(row[COL_MUD_FECHARES]), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ss")
+        : '',
+      estado: String(row[COL_MUD_ESTADO] || '')
+    });
+  }
+
+  // Ordenar por fecha descendente (más recientes primero), luego por horaInicio
+  reservas.sort((a, b) => {
+    const fc = (b.fecha || '').localeCompare(a.fecha || '');
+    if (fc !== 0) return fc;
+    return (b.horaInicio || '').localeCompare(a.horaInicio || '');
+  });
+
+  return { ok: true, propietario: verif, reservas: reservas, total: reservas.length };
+}
+
+// ---------------------------------------------------------------------
+// Endpoint: adminListarReservasMudanzen (lista TODAS para admin)
+// Agregado 05-Oct-2026 para tab Mudanzas del admin
+// Auth: ADMIN_TOKEN (server-side). NO envía emails. Solo consulta.
+// ---------------------------------------------------------------------
+function adminListarReservasMudanzas(estado, torre, proxDias) {
+  const sheet = getMudanzasSheet();
+  const last = sheet.getLastRow();
+  if (last < MUDANZAS_HEADER_ROW + 1) {
+    return { ok: true, total: 0, filtros: {}, reservas: [] };
+  }
+  const data = sheet.getRange(MUDANZAS_HEADER_ROW + 1, 1, last - MUDANZAS_HEADER_ROW, MUDANZAS_NUM_COLS).getValues();
+
+  // Calcular rango de fechas si proxDias está definido
+  let fechaDesde = '';
+  let fechaHasta = '';
+  if (proxDias !== '' && proxDias !== undefined && proxDias !== null) {
+    const n = parseInt(proxDias, 10);
+    if (!isNaN(n) && n > 0) {
+      const hoy = new Date();
+      const futuro = new Date(hoy);
+      futuro.setDate(futuro.getDate() + n);
+      const fmt = (d) => Utilities.formatDate(d, 'America/Bogota', 'yyyy-MM-dd');
+      fechaDesde = fmt(hoy);
+      fechaHasta = fmt(futuro);
+    }
+  }
+
+  const reservas = [];
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    const estadoRow = String(row[COL_MUD_ESTADO] || '').trim();
+
+    // Filtro por estado
+    if (estado && estado !== 'Todas' && estadoRow !== estado) continue;
+
+    // Filtro por torre (individual — no por par)
+    if (torre && String(row[COL_MUD_TORRE]).trim() !== torre) continue;
+
+    const fechaRow = formatDateOnly(row[COL_MUD_FECHA]);
+
+    // Filtro por rango fechas (proxDias)
+    if (fechaDesde && (!fechaRow || fechaRow < fechaDesde)) continue;
+    if (fechaHasta && (!fechaRow || fechaRow > fechaHasta)) continue;
+
+    reservas.push({
+      id: String(row[COL_MUD_ID] || ''),
+      numForm: String(row[COL_MUD_NUMFORM] || ''),
+      apto: String(row[COL_MUD_APTO] || ''),
+      torre: String(row[COL_MUD_TORRE] || ''),
+      ascensor: String(row[COL_MUD_ASCENSOR] || ''),
+      tipoMudanza: String(row[COL_MUD_TIPO] || ''),
+      fecha: fechaRow,
+      horaInicio: normalizarHora(row[COL_MUD_HORA_INI]),
+      horaFin: normalizarHora(row[COL_MUD_HORA_FIN]),
+      nombreSolicitante: String(row[COL_MUD_NOMBRE] || ''),
+      ccSolicitante: String(row[COL_MUD_CC] || ''),
+      celular: String(row[COL_MUD_CEL] || ''),
+      correo: String(row[COL_MUD_CORREO] || ''),
+      empresa: String(row[COL_MUD_EMPRESA] || ''),
+      placa: String(row[COL_MUD_PLACA] || ''),
+      observaciones: String(row[COL_MUD_OBS] || ''),
+      estado: estadoRow,
+      fechaReservaRaw: row[COL_MUD_FECHARES]
+        ? Utilities.formatDate(new Date(row[COL_MUD_FECHARES]), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ss")
+        : ''
+    });
+  }
+
+  // Ordenar por fecha descendente (más recientes primero), luego por horaInicio
+  reservas.sort((a, b) => {
+    const fc = (b.fecha || '').localeCompare(a.fecha || '');
+    if (fc !== 0) return fc;
+    return (b.horaInicio || '').localeCompare(a.horaInicio || '');
+  });
+
+  return {
+    ok: true,
+    total: reservas.length,
+    filtros: { estado: estado || 'Todas', torre: torre || 'Todas', proxDias: proxDias || '', fechaDesde: fechaDesde, fechaHasta: fechaHasta },
+    reservas: reservas
+  };
+}
+
+// ---------------------------------------------------------------------
+// Endpoint: vigilanteVerMudanzas (lista para portería)
+// F10 — Vigilantes v2.0
+// ---------------------------------------------------------------------
+function vigilanteVerMudanzas(fecha) {
+  const sheet = getMudanzasSheet();
+  const last = sheet.getLastRow();
+  if (last < MUDANZAS_HEADER_ROW + 1) return { ok: true, reservas: [], total: 0 };
+
+  // Leer todas las 22 columnas
+  const data = sheet.getRange(MUDANZAS_HEADER_ROW + 1, 1, last - MUDANZAS_HEADER_ROW, MUDANZAS_NUM_COLS).getValues();
+
+  const hoy = new Date();
+  const hace30 = new Date(hoy);
+  hace30.setDate(hace30.getDate() - MUDANZAS_CANCELADAS_RECIENTES_DIAS);
+  const hoy0 = new Date(hoy);
+  hoy0.setHours(0, 0, 0, 0);
+
+  const reservas = [];
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    const idReserva = String(row[COL_MUD_ID] || '').trim();
+    if (!idReserva) continue;
+
+    const estado = String(row[COL_MUD_ESTADO] || '').trim();
+    if (estado !== 'Confirmada' && estado !== 'Cancelada') continue;
+
+    const fechaRes = row[COL_MUD_FECHA];
+    const fechaResStr = fechaRes instanceof Date
+      ? Utilities.formatDate(fechaRes, 'America/Bogota', 'yyyy-MM-dd')
+      : String(fechaRes || '').slice(0, 10);
+    const fechaDate = fechaRes instanceof Date ? fechaRes : new Date(String(fechaRes));
+
+    // Filtrar
+    if (fecha) {
+      if (fechaResStr !== fecha) continue;
+    } else {
+      if (estado === 'Cancelada') {
+        if (fechaDate < hace30) continue;
+      } else {
+        if (fechaDate < hoy0) continue;
+      }
+    }
+
+    reservas.push({
+      idReserva: idReserva,
+      numForm: String(row[COL_MUD_NUMFORM] || ''),
+      apto: String(row[COL_MUD_APTO] || ''),
+      tipoMudanza: String(row[COL_MUD_TIPO] || ''),
+      torre: String(row[COL_MUD_TORRE] || ''),
+      ascensor: String(row[COL_MUD_ASCENSOR] || ''),
+      fecha: fechaResStr,
+      horaInicio: normalizarHora(row[COL_MUD_HORA_INI]),
+      horaFin: normalizarHora(row[COL_MUD_HORA_FIN]),
+      nombrePropietario: String(row[COL_MUD_NOMBRE] || ''),
+      estado: estado,
+      realizada: String(row[COL_MUD_REALIZADA] || ''),
+      fechaCheck: String(row[COL_MUD_FECHACHECK] || ''),
+      vigilante: String(row[COL_MUD_VIGILANTE] || ''),
+      rowNumber: i + MUDANZAS_HEADER_ROW + 1
+    });
+  }
+
+  // Ordenar: Confirmadas primero, luego por fecha ascendente
+  reservas.sort((a, b) => {
+    if (a.estado !== b.estado) return a.estado === 'Confirmada' ? -1 : 1;
+    return (a.fecha || '').localeCompare(b.fecha || '');
+  });
+
+  return { ok: true, reservas: reservas, total: reservas.length };
+}
+
+// ---------------------------------------------------------------------
+// Endpoint: vigilanteCheckMudanza (registrar check-in)
+// F10 — Vigilantes v2.0
+// ---------------------------------------------------------------------
+function vigilanteCheckMudanza(data) {
+  const idReserva = String(data.idReserva || '').trim();
+  if (!idReserva) return { ok: false, error: 'Falta idReserva.' };
+  const status = String(data.status || '').trim();
+  if (status !== 'realizada' && status !== 'no_realizada') {
+    return { ok: false, error: 'status debe ser "realizada" o "no_realizada".' };
+  }
+  const vigilante = String(data.vigilante || '').trim().substring(0, 100);
+  if (!vigilante) return { ok: false, error: 'Falta nombre del vigilante.' };
+
+  const sheet = getMudanzasSheet();
+  const last = sheet.getLastRow();
+  if (last < MUDANZAS_HEADER_ROW + 1) return { ok: false, error: 'Sin reservas.' };
+
+  const idCol = sheet.getRange(MUDANZAS_HEADER_ROW + 1, COL_MUD_ID + 1, last - MUDANZAS_HEADER_ROW, 1).getValues();
+  let targetRow = -1;
+  for (let i = 0; i < idCol.length; i++) {
+    if (String(idCol[i][0] || '').trim() === idReserva) {
+      targetRow = i + MUDANZAS_HEADER_ROW + 1;
+      break;
+    }
+  }
+  if (targetRow === -1) return { ok: false, error: 'No se encontró la reserva ' + idReserva + '.' };
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(MUDANZAS_LOCK_TIMEOUT_MS)) {
+    return { ok: false, error: 'Otro vigilante está marcando. Intenta en unos segundos.' };
+  }
+
+  try {
+    const realizadaTxt = status === 'realizada' ? MUDANZAS_CHECK_REALIZADA : MUDANZAS_CHECK_NO_REALIZADA;
+    sheet.getRange(targetRow, COL_MUD_REALIZADA + 1).setValue(realizadaTxt);
+    sheet.getRange(targetRow, COL_MUD_FECHACHECK + 1).setValue(
+      Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd HH:mm:ss')
+    );
+    sheet.getRange(targetRow, COL_MUD_VIGILANTE + 1).setValue(vigilante);
+    return { ok: true, message: 'Check registrado correctamente.', rowNumber: targetRow };
+  } finally {
+    lock.releaseLock();
+  }
 }

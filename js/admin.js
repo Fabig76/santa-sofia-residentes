@@ -453,16 +453,16 @@ function renderMudanzasTable(reservas, filtros) {
     const fecha = res.fecha || '?';
     const hora = (res.horaInicio && res.horaFin) ? res.horaInicio + ' - ' + res.horaFin : '?';
     html += '<tr style="border-bottom:1px solid var(--gris-borde);">';
-    html += '<td style="padding:8px;"><code style="background:var(--azul-claro); padding:2px 6px; border-radius:4px; font-size:12px;">' + res.id + '</code></td>';
-    html += '<td style="padding:8px;">' + fecha + '</td>';
-    html += '<td style="padding:8px;">' + hora + '</td>';
-    html += '<td style="padding:8px;">' + res.torre + '</td>';
-    html += '<td style="padding:8px;">' + res.tipoMudanza + '</td>';
-    html += '<td style="padding:8px;">' + res.apto + '</td>';
-    html += '<td style="padding:8px;">' + (res.nombreSolicitante || '?') + '<br><small style="color:var(--gris-med);">CC ' + (res.ccSolicitante || '?') + '</small></td>';
-    html += '<td style="padding:8px;">' + (res.celular || '?') + '</td>';
-    html += '<td style="padding:8px;">' + (res.placa || '-') + '</td>';
-    html += '<td style="padding:8px; color:' + estadoColor + '; font-weight:600;">' + res.estado + '</td>';
+    html += '<td style="padding:8px;"><code style="background:var(--azul-claro); padding:2px 6px; border-radius:4px; font-size:12px;">' + esc(res.id) + '</code></td>';
+    html += '<td style="padding:8px;">' + esc(fecha) + '</td>';
+    html += '<td style="padding:8px;">' + esc(hora) + '</td>';
+    html += '<td style="padding:8px;">' + esc(res.torre) + '</td>';
+    html += '<td style="padding:8px;">' + esc(res.tipoMudanza) + '</td>';
+    html += '<td style="padding:8px;">' + esc(res.apto) + '</td>';
+    html += '<td style="padding:8px;">' + esc(res.nombreSolicitante || '?') + '<br><small style="color:var(--gris-med);">CC ' + esc(res.ccSolicitante || '?') + '</small></td>';
+    html += '<td style="padding:8px;">' + esc(res.celular || '?') + '</td>';
+    html += '<td style="padding:8px;">' + esc(res.placa || '-') + '</td>';
+    html += '<td style="padding:8px; color:' + estadoColor + '; font-weight:600;">' + esc(res.estado) + '</td>';
     html += '</tr>';
   });
 
