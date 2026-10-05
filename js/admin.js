@@ -365,4 +365,133 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#btnDevolverLlaves').addEventListener('click', devolverLlaves);
   $('#btnGuardarTags').addEventListener('click', guardarTags);
   $('#btnDevolverTags').addEventListener('click', devolverTagIndividual);
+
+  // ====== TABS (F9.5) ======
+  $('#btnNavResidentes').addEventListener('click', () => navResidentes());
+  $('#btnNavMudanzas').addEventListener('click', () => navMudanzas());
+  $('#btnCargarMudanzas').addEventListener('click', () => cargarMudanzasList());
+  $('#mudanzasEstadoFilter').addEventListener('change', () => cargarMudanzasList());
+  $('#mudanzasTorreFilter').addEventListener('change', () => cargarMudanzasList());
+  $('#mudanzasProximosDiasCheck').addEventListener('change', () => cargarMudanzasList());
+
+  // Default: tab Residentes
+  navResidentes();
 });
+
+// ====== NAVEGACIÓN DE TABS (F9.5) ======
+function navResidentes() {
+  $('#tab-residentes-admin').classList.remove('hidden');
+  $('#tab-mudanzas-admin').classList.add('hidden');
+  $('#btnNavResidentes').classList.remove('btn-secondary');
+  $('#btnNavResidentes').classList.add('btn-primary');
+  $('#btnNavMudanzas').classList.remove('btn-primary');
+  $('#btnNavMudanzas').classList.add('btn-secondary');
+}
+
+async function navMudanzas() {
+  $('#tab-residentes-admin').classList.add('hidden');
+  $('#tab-mudanzas-admin').classList.remove('hidden');
+  $('#btnNavResidentes').classList.remove('btn-primary');
+  $('#btnNavResidentes').classList.add('btn-secondary');
+  $('#btnNavMudanzas').classList.remove('btn-secondary');
+  $('#btnNavMudanzas').classList.add('btn-primary');
+  await cargarMudanzasList();
+}
+
+// ====== MUDANZAS-ADMIN: listar con filtros (F9.5) ======
+async function cargarMudanzasList() {
+  const estado = val('#mudanzasEstadoFilter');
+  const torre = val('#mudanzasTorreFilter');
+  const proxCheck = $('#mudanzasProximosDiasCheck').checked;
+  const proxDias = proxCheck ? val('#mudanzasProximosDiasInput') : '';
+  const container = $('#mudanzasList');
+  container.innerHTML = '<p style="text-align:center; color:var(--gris-med); padding:20px;">Cargando...</p>';
+
+  try {
+    const params = { action: 'adminListarReservasMudanzas', token: ADMIN_TOKEN };
+    if (estado) params.estado = estado;
+    if (torre) params.torre = torre;
+    if (proxDias) params.proxDias = proxDias;
+
+    const r = await apiGet(params);
+    if (!r.ok) {
+      container.innerHTML = '<p style="color:var(--err); padding:20px;">Error: ' + (r.error || 'desconocido') + '</p>';
+      return;
+    }
+    renderMudanzasTable(r.reservas || [], r.filtros || {});
+  } catch (e) {
+    container.innerHTML = '<p style="color:var(--err);">Error de red: ' + e.message + '</p>';
+  }
+}
+
+function renderMudanzasTable(reservas, filtros) {
+  const c = $('#mudanzasList');
+  if (!reservas.length) {
+    let msg = 'No hay reservas';
+    if (filtros && filtros.estado && filtros.estado !== 'Todas') msg += ' con estado "' + filtros.estado + '"';
+    if (filtros && filtros.torre) msg += ' en torre "' + filtros.torre + '"';
+    c.innerHTML = '<p style="text-align:center; color:var(--gris-med); padding:30px;">' + msg + '.</p>';
+    return;
+  }
+  let html = '<p style="margin-bottom:12px; color:var(--gris-med);">Total: <strong>' + reservas.length + '</strong> reserva(s)</p>';
+  html += '<div style="overflow-x:auto;"><table class="results-table" style="width:100%; border-collapse:collapse; font-size:13px;">';
+  html += '<thead><tr style="background:var(--azul-claro); border-bottom:2px solid var(--azul-osc);">';
+  html += '<th style="padding:10px; text-align:left;">ID</th>';
+  html += '<th style="padding:10px; text-align:left;">Fecha</th>';
+  html += '<th style="padding:10px; text-align:left;">Horario</th>';
+  html += '<th style="padding:10px; text-align:left;">Torre</th>';
+  html += '<th style="padding:10px; text-align:left;">Tipo</th>';
+  html += '<th style="padding:10px; text-align:left;">Apto</th>';
+  html += '<th style="padding:10px; text-align:left;">Solicitante</th>';
+  html += '<th style="padding:10px; text-align:left;">Celular</th>';
+  html += '<th style="padding:10px; text-align:left;">Placa</th>';
+  html += '<th style="padding:10px; text-align:left;">Estado</th>';
+  html += '</tr></thead><tbody>';
+
+  reservas.forEach(res => {
+    const estadoColor = res.estado === 'Confirmada' ? 'var(--ok)' : (res.estado === 'Cancelada' ? 'var(--err)' : 'var(--gris-med)');
+    const fecha = res.fecha || '?';
+    const hora = (res.horaInicio && res.horaFin) ? res.horaInicio + ' - ' + res.horaFin : '?';
+    html += '<tr style="border-bottom:1px solid var(--gris-borde);">';
+    html += '<td style="padding:8px;"><code style="background:var(--azul-claro); padding:2px 6px; border-radius:4px; font-size:12px;">' + res.id + '</code></td>';
+    html += '<td style="padding:8px;">' + fecha + '</td>';
+    html += '<td style="padding:8px;">' + hora + '</td>';
+    html += '<td style="padding:8px;">' + res.torre + '</td>';
+    html += '<td style="padding:8px;">' + res.tipoMudanza + '</td>';
+    html += '<td style="padding:8px;">' + res.apto + '</td>';
+    html += '<td style="padding:8px;">' + (res.nombreSolicitante || '?') + '<br><small style="color:var(--gris-med);">CC ' + (res.ccSolicitante || '?') + '</small></td>';
+    html += '<td style="padding:8px;">' + (res.celular || '?') + '</td>';
+    html += '<td style="padding:8px;">' + (res.placa || '-') + '</td>';
+    html += '<td style="padding:8px; color:' + estadoColor + '; font-weight:600;">' + res.estado + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  c.innerHTML = html;
+}
+
+// Helper: GET al Apps Script con query params
+async function apiGet(params) {
+  const qs = Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+  const url = APPS_SCRIPT_URL + '?' + qs;
+  return fetchJson(url);
+}
+
+// Helper: fetch con retry (mitigación HTML 500/405 por cold start MailApp)
+// Replica del patrón usado en js/app.js para módulo mudanzas
+async function fetchJson(url, retries) {
+  retries = (typeof retries === 'number') ? retries : 1;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const r = await fetch(url);
+      const text = await r.text();
+      try { return JSON.parse(text); }
+      catch (e) {
+        if (i < retries) { await new Promise(r => setTimeout(r, 2000)); continue; }
+        return { ok: false, error: 'El servidor respondió con HTML en lugar de JSON. Intente nuevamente en 1 minuto.' };
+      }
+    } catch (e) {
+      throw e;
+    }
+  }
+}
