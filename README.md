@@ -17,6 +17,28 @@ Arquitectura:
 | Portal vigilantes | https://fabig76.github.io/santa-sofia-residentes/vigilantes.html | ✅ Activo |
 | Apps Script Web App | `…/AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ/dev` | ✅ Activo |
 
+**Deploy Email post-envío** (14-Oct-2026, Apps Script Versión 26):
+- **Problema detectado:** residentes no recibían email con su N° de formulario tras crear/editar registro. La pantalla muestra "GUÁRDALO en un lugar seguro" pero muchos residentes NO anotaban y perdían el código para siempre (la administración NO puede recuperarlo).
+- **Backend V26** — 1 función + 1 endpoint + 1 helper nuevos:
+  - `enviarEmailConfirmacionResidente(data, numForm, editMode)`: envía email al titular (`correoProp`) con CC al admin (`santasofia.clubresidencial@gmail.com`). Asunto "Registro creado/actualizado — Santa Sofía Club Residencial V.I.S — N° SS-XXXX". Cuerpo con datos clave + instrucciones para editar.
+  - `action=adminBorrarRegistro` (POST con ADMIN_TOKEN): borra fila física del Sheet "Registros" por numForm. Replica el patrón de `adminBorrarReserva` (V22). Necesario para limpiar registros de prueba.
+  - `try/catch` email dentro de `submitRecord`: si MailApp falla, registro SIGUE creado y response retorna `emailSent:false, emailWarning:...` sin afectar el contrato existente.
+- **Frontend V2.3** — 2 cambios en `js/app.js`:
+  - `enviarFormulario()` migra de `fetch` directo a `safePost()` (función que YA existía con retry 1 vez contra cold start MailApp).
+  - `mostrarExito()` agrega warning amarillo si `data.pendingEmail` o `data.emailSent===false`: "Si no recibe el email en 5 minutos, verifique su carpeta de spam o contacte a la administración".
+- **Seguridad:** numForm sigue siendo credencial de edición — NO se filtra en emails a OTROS titulares. Solo al `correoProp` del propio registro.
+- **Pruebas F7 (14-Oct-2026 20:13 COL):** 4 tests pasaron:
+  - POST `submit` TEST-2000 editMode=true → ok:true, emailSent:true
+  - POST `submit` apto=9996 (creación) → ok:true, numForm=SS-0104, emailSent:true
+  - POST `submit` correoInválido → rechazado "Correo del titular inválido" (regex L671)
+  - `lookup(TEST-2000, 2000)` → ok:true (sin cambios)
+- **Registros de prueba NO borrados** (decisión operador 14-Oct-2026 20:30 COL): SS-0103 (fila 105) y SS-0104 (fila 106) quedan en el Sheet como evidencia de la prueba. El endpoint `adminBorrarRegistro` queda desplegado para limpiezas futuras.
+- **Spec:** `docs/spec-email-post-envio.md` (332 líneas, decisiones D1-D8, 10 secciones, riesgos + mitigaciones).
+- **md5 finales:**
+  - `apps-script/Codigo.gs`: `65dc77187c2baf5377d0276fe55a5743` (2601 líneas, +93 vs V25)
+  - `js/app.js`: `2c3022e88313047a93385d716dd95f04` (1336 líneas, +4 vs V25)
+  - `docs/spec-email-post-envio.md`: nuevo
+
 **Deploy módulo Mudanzas v1.0** (05-Oct-2026, Apps Script Versión 17):
 - **Backend V17** — 5 endpoints nuevos:
   - `?action=verificarPropietario` (GET): valida SS-XXXX + apto + cédula del propietario (mismas 3 firmas que Cerro Azul).

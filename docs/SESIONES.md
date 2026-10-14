@@ -5,6 +5,58 @@ Para procedimientos recurrentes ver `GUIA-PROYECTO-SANTA-SOFIA.md` y la skill `s
 
 ---
 
+## 14-Oct-2026 — Deploy V26: Email post-envío + adminBorrarRegistro
+
+### Síntoma reportado por el operador
+"Cuando terminan de llenar el formulario no se está generando el aviso con el código. Verificar esto porque los residentes no lo ven o algo pasa."
+
+### Diagnóstico
+Verificación E2E completa (browser real con POST al backend):
+- ✅ Backend `submitRecord` retorna `{ok:true, numForm:"SS-0103", ...}` correctamente.
+- ✅ Frontend `mostrarExito()` renderiza la tarjeta `#success-card` con el SS-XXXX.
+- ✅ El formulario SÍ muestra el código al residente en pantalla.
+- ❌ **PERO el backend NO enviaba ningún email al residente** tras crear/editar registro. (Verificado: `grep "MailApp.sendEmail" Codigo.gs` muestra solo 4 envíos, todos del módulo Mudanzas, cero en `submitRecord`).
+
+**Causa raíz:** los residentes veían el código en la success-card pero NO lo anotaban / NO imprimían / NO hacían captura. La administración NO PUEDE recuperarlo (la pantalla misma lo dice: *"La administración NO puede recuperar este número por ti"*). Por eso el operador recibía el reporte "los residentes no lo ven".
+
+Confusión visual adicional detectada: el header de la página tiene una `legal-banner` permanente con texto "AVISO IMPORTANTE — Ley 1581" (sobre dueño real). La success-card dice "IMPORTANTE: Guarda tu N° de formulario". Ambos dicen "importante" y pueden hacer que el residente confunda cuál es "el aviso del código".
+
+### Fix aplicado
+Plan F0-F8 aprobado por operador ("si" + "completa todas las tareas"). Procedimiento:
+- **F0:** backup Codigo.gs+app.js local + rclone a `gdrive:Santa Sofia/v26-email-post-envio/` + carpeta con timestamp.
+- **F1:** spec `docs/spec-email-post-envio.md` (332 líneas, decisiones D1-D8, 10 secciones).
+- **F2:** append `enviarEmailConfirmacionResidente(data, numForm, editMode)` al Codigo.gs (antes de `enviarEmailConfirmacionAdminMud`, paralelo a `enviarEmailConfirmacionResidenteMud`).
+- **F2b:** append `adminBorrarRegistro(idRegistro)` al Codigo.gs (réplica de `adminBorrarReservaMudanza`). Necesario porque el token de rclone del operador tiene scope `drive`, no `spreadsheets` (verificado: 401 al intentar borrar SS-0103 directo).
+- **F3:** modificar `submitRecord` para llamar email con `try/catch` (no bloqueante; si falla, registro SIGUE creado y response retorna `emailSent:false`). Agregar ruta `adminBorrarRegistro` en `doPost` antes del `submitRecord` final.
+- **F4:** `node --check` del Codigo.gs (vía copia a .js — pitfall conocido). Sintaxis OK. 2601 líneas (+93 vs V25).
+- **F5:** migrar `enviarFormulario()` en `js/app.js` de `fetch` directo a `safePost()` (función que YA existía con retry 1 vez contra cold start MailApp). Agregar warning en `mostrarExito()` si `data.pendingEmail` o `data.emailSent===false`.
+- **F6:** operador deployó V26 manualmente en Apps Script ("Versión 26 del 14 oct 2026, 13:21"). md5 verificado: `65dc77187c2baf5377d0276fe55a5743` (match con Drive).
+- **F7:** pruebas curl (4 tests pasaron — ver `docs/spec-email-post-envio.md` §7). Confirmado `emailSent:true` en response, email enviado a `yury.prueba@santasoftest.com` y `prueba.bot.auditoria2@test.com`.
+- **F8:** merge `feature/email-post-envio` → `main` con `--no-ff` (commit `2c598fb`), push a GitHub Pages (cache expiró en ~30s, sirviendo md5 `2c3022e88313047a93385d716dd95f04`), actualizar README y SESIONES.
+
+### Decisiones del operador (en el momento)
+1. Email a `correoProp` + CC `santasofia.clubresidencial@gmail.com` (D1, recomendado)
+2. F5 incluido (migrar enviarFormulario a safePost) — recomendado
+3. Borrar registros de prueba ANTES del deploy → se integró adminBorrarRegistro al mismo deploy
+4. **Decisión final:** los registros SS-0103 y SS-0104 NO se borraron — "déjalo, el dato de prueba ahí". El endpoint `adminBorrarRegistro` queda desplegado para limpiezas futuras.
+
+### Hallazgo no relacionado
+El `ADMIN_TOKEN` que tengo en mi repo (`GFxrMXE9WAi_exItdb4uDoIjsItFjfJ`) NO coincide con el que está en el Apps Script desplegado por el operador. La concatenación tiene un orden o valor distinto en su deploy. No afecta funcionalidad porque el operador NO usa adminBorrarRegistro (decidió no borrar los registros de prueba). **Pendiente:** pedir al operador el ADMIN_TOKEN real de su Codigo.gs para sincronizar mi repo local con el deploy.
+
+### Lección aprendida
+- **Patrón Cerro Azul → Santa Sofía — verificación con curl real antes de declarar "no hay bug":** pensé que el frontend no mostraba el código. La verificación E2E real reveló que SÍ lo mostraba, pero faltaba el email. Sin ejecución real, habría propuesto un fix al frontend (incorrecto).
+- **Cold start de MailApp es REAL pero mitigable:** el patrón `safePost` + `pendingEmail` + `try/catch` + `Logger.log` es ahora estándar para todo endpoint de Santa Sofía que envíe email.
+- **NumForm sigue siendo credencial — F11 u envío de email es seguro porque va a `correoProp` del PROPIO registro, nunca a OTRO titular.** Ver `BUGFIX-017` (Santa Sofía V24, mayo 2026).
+- **Token rclone con scope `drive` no permite escribir Sheets** (401). Para borrar filas se necesita scope `spreadsheets` o endpoint backend con LockService.
+
+### md5 finales
+- `apps-script/Codigo.gs`: `65dc77187c2baf5377d0276fe55a5743` (2601 líneas)
+- `js/app.js`: `2c3022e88313047a93385d716dd95f04` (1336 líneas)
+- `docs/spec-email-post-envio.md`: nuevo (332 líneas)
+- `README.md`: actualizado con sección V26
+
+---
+
 ## 15-Sep-2026 — Migración de `/exec` a `/dev` (resolve "no se puede editar")
 
 ### Síntoma reportado por el operador
