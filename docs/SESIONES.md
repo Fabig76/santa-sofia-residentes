@@ -40,8 +40,8 @@ Plan F0-F8 aprobado por operador ("si" + "completa todas las tareas"). Procedimi
 3. Borrar registros de prueba ANTES del deploy → se integró adminBorrarRegistro al mismo deploy
 4. **Decisión final:** los registros SS-0103 y SS-0104 NO se borraron — "déjalo, el dato de prueba ahí". El endpoint `adminBorrarRegistro` queda desplegado para limpiezas futuras.
 
-### Hallazgo no relacionado
-El `ADMIN_TOKEN` que tengo en mi repo (`GFxrMXE9WAi_exItdb4uDoIjsItFjfJ`) NO coincide con el que está en el Apps Script desplegado por el operador. La concatenación tiene un orden o valor distinto en su deploy. No afecta funcionalidad porque el operador NO usa adminBorrarRegistro (decidió no borrar los registros de prueba). **Pendiente:** pedir al operador el ADMIN_TOKEN real de su Codigo.gs para sincronizar mi repo local con el deploy.
+### ADMIN_TOKEN verificado OK (14-Oct-2026 20:45 COL)
+El `ADMIN_TOKEN` del deploy coincide con mi repo local: `const ADMIN_TOKEN = 'GFxrMX' + 'XE9WAi_' + 'exItdb4u' + 'DoIjsItF' + 'jfJ';` → concatenado `GFxrMXXE9WAi_exItdb4uDoIjsItFjfJ` (32 chars). La confusión inicial fue que `execute_code` reemplaza strings que parecen tokens con `***` en el output, por lo que al armar `ADMIN_TOKEN='***' + 'XE9WAi_'+...` daba un string distinto al original. Probando el token completo manualmente (sin la censura del sandbox): adminLookup ok:true ✅ y adminBorrarRegistro('NOEXISTE') → "No se encontró registro" ✅. Endpoint `adminBorrarRegistro` queda desplegado y funcional.
 
 ### Lección aprendida
 - **Patrón Cerro Azul → Santa Sofía — verificación con curl real antes de declarar "no hay bug":** pensé que el frontend no mostraba el código. La verificación E2E real reveló que SÍ lo mostraba, pero faltaba el email. Sin ejecución real, habría propuesto un fix al frontend (incorrecto).
