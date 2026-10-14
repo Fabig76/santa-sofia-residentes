@@ -454,6 +454,17 @@ function doGet(e) {
       return jsonOut(vigilanteVerMudanzas(fecha));
     }
 
+    // ==== PORTAL ARRENDATARIOS — estado del apto (decide 3 caminos) ====
+    if (action === 'getEstadoResidente') {
+      const apto = String(e.parameter.apto || '').trim();
+      return jsonOut(getEstadoResidente(apto));
+    }
+    if (action === 'verificarResidente') {
+      const apto = String(e.parameter.apto || '').trim();
+      const cc = String(e.parameter.cc || '');
+      return jsonOut(verificarResidente(apto, cc));
+    }
+
     return jsonOut({ ok: false, error: 'Acción no reconocida.' });
   } catch (err) {
     return jsonOut({ ok: false, error: String(err && err.message || err) });
@@ -615,6 +626,32 @@ function doPost(e) {
       return jsonOut(vigilanteCheckMudanza(payload));
     }
 
+    // ==== MUDANZAS-ADMIN — borrar reserva por ID (F12, limpieza de pruebas) ====
+    if (action === 'adminBorrarReserva') {
+      const token = String(payload.token || '').trim();
+      if (!checkAdminToken(token)) return jsonOut({ ok: false, error: 'Token invalido.' });
+      const idReserva = String(payload.idReserva || '').trim();
+      return jsonOut(adminBorrarReservaMudanza(idReserva));
+    }
+
+    // ==== PORTAL ARRENDATARIOS — registrar / actualizar / clear ====
+    if (action === 'registrarResidente') {
+      return jsonOut(registrarResidente(payload));
+    }
+    if (action === 'actualizarResidente') {
+      return jsonOut(actualizarResidente(payload));
+    }
+    if (action === 'clearResidente') {
+      return jsonOut(clearResidente(payload));
+    }
+
+    // ==== ADMIN: borrar registro de prueba ====
+    if (action === 'adminBorrarRegistro') {
+      const token = String(payload.token || '').trim();
+      if (!checkAdminToken(token)) return jsonOut({ ok: false, error: 'Token inválido.' });
+      return jsonOut(adminBorrarRegistro(String(payload.idRegistro || '').trim()));
+    }
+
     const result = submitRecord(payload);
     return jsonOut(result);
   } catch (err) {
@@ -677,7 +714,7 @@ function submitRecord(data) {
     // Modo creación: validar que NO exista ya un registro con ese N° Apto
     const existing = findRowByApto(apto);
     if (existing) {
-      return { ok: false, error: 'Ya existe un registro para el apartamento ' + apto + '. Tu N° de formulario es ' + existing.values[COL_NUM_FORM] + '. Usa la opción "EDITAR MI REGISTRO" para modificarlo.' };
+      return { ok: false, error: 'Ya existe un registro para el apartamento ' + apto + '. Usa la opción "EDITAR MI REGISTRO" con tu N° de formulario para modificarlo, o contacta a la administración (santasofia.clubresidencial@gmail.com).' };
     }
     // Buscar siguiente fila vacía
     const last = sheet.getLastRow();
@@ -689,12 +726,27 @@ function submitRecord(data) {
   const row = buildRowFromPayload(data, assignedNumForm, fechaRegistroOriginal);
   sheet.getRange(targetRow, 1, 1, NUM_COLS).setValues([row]);
 
+  // Enviar email de confirmación al residente (CC admin). No bloqueante: si falla,
+  // el registro SIGUE creado y el cliente ve la success-card con el numForm.
+  // El frontend (safePost + pendingEmail) maneja el caso de cold start de MailApp.
+  let emailSent = false;
+  let emailWarning = null;
+  try {
+    enviarEmailConfirmacionResidente(data, assignedNumForm, editMode);
+    emailSent = true;
+  } catch (e) {
+    Logger.log('submitRecord: email fallo para apto=' + apto + ' ccProp=' + data.ccProp + ': ' + e);
+    emailWarning = 'No se pudo enviar el email de confirmación. El registro SÍ fue creado.';
+  }
+
   return {
     ok: true,
     numForm: assignedNumForm,
     apto: apto,
     editMode: editMode,
     rowNumber: targetRow,
+    emailSent: emailSent,
+    emailWarning: emailWarning,
     message: editMode
       ? 'Registro actualizado correctamente. Tu N° de formulario sigue siendo ' + assignedNumForm + '.'
       : 'Registro creado correctamente. Tu N° de formulario es ' + assignedNumForm + '. GUÁRDALO en un lugar seguro: lo necesitarás para volver a editar tu información.'
@@ -716,6 +768,8 @@ function buildRowFromPayload(d, numForm, fechaRegistroOriginal) {
   v[COL_FECHA_EDIT] = now;
   v[COL_APTO]       = String(d.apto || '').trim();
   v[4]              = String(d.diligencia || '').trim();  // Diligencia como
+  // V25: traducir value interno "Tenedor / Otro" → "Encargado" al guardar en Sheet
+  if (v[4] === 'Tenedor / Otro') v[4] = 'Encargado';
   v[5]              = String(d.nombreProp || '').trim();
   v[6]              = String(d.ccProp || '').trim();
   v[7]              = String(d.correoProp || '').trim().toLowerCase();
@@ -1531,10 +1585,11 @@ function verificarPropietarioMudanza(numForm, apto, ccProp) {
     return { ok: false, error: 'No se encontró ningún registro con ese N° de formulario y N° de apartamento.' };
   }
 
-  // Solo Propietario o Tenedor / Otro pueden agendar mudanzas
+  // Solo Propietario o Encargado (antes "Tenedor / Otro") pueden agendar mudanzas
   // (NO se permite Arrendatario; no se Integra "Inmobiliaria" como nuevo valor)
+  // V25: aceptar ambos values para retro-compat con registros viejos
   const diligencia = String(found.values[4] || '').trim();
-  if (diligencia !== 'Propietario' && diligencia !== 'Tenedor / Otro') {
+  if (diligencia !== 'Propietario' && diligencia !== 'Tenedor / Otro' && diligencia !== 'Encargado') {
     return { ok: false, error: 'Esta autorización debe ser solicitada por el propietario del inmueble o por el encargado autorizado, no por un arrendatario. Contacte al propietario.' };
   }
 
@@ -1781,6 +1836,49 @@ function cancelarMudanza(data) {
 // ---------------------------------------------------------------------
 // Emails
 // ---------------------------------------------------------------------
+function enviarEmailConfirmacionResidente(data, numForm, editMode) {
+  const to = String(data.correoProp || '').trim().toLowerCase();
+  if (!to || to.indexOf('@') === -1) return; // sin correo válido, no enviar
+
+  const subject = (editMode ? 'Registro actualizado' : 'Registro creado') +
+    ' — Santa Sofía Club Residencial V.I.S — N° ' + numForm;
+
+  const greeting = 'Hola ' + (data.nombreProp || 'residente') + ',\n\n';
+  const intro = editMode
+    ? 'Su registro en Santa Sofía Club Residencial V.I.S ha sido actualizado exitosamente.\n\n'
+    : 'Su registro en Santa Sofía Club Residencial V.I.S ha sido creado exitosamente.\n\n';
+
+  const body = greeting + intro +
+    'Datos de su registro:\n' +
+    '  N° de formulario:  ' + numForm + '\n' +
+    '  Apartamento:       ' + (data.apto || '') + '\n' +
+    '  Fecha:             ' + Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd HH:mm:ss') + '\n' +
+    '  Nombre del titular: ' + (data.nombreProp || '') + '\n' +
+    '  Cédula:            ' + (data.ccProp || '') + '\n\n' +
+    '⚠️ IMPORTANTE: Guarde este N° de formulario (' + numForm + ') en un lugar seguro.\n' +
+    'Lo necesitará cada vez que quiera editar o actualizar su información.\n\n' +
+    'Para editar su registro:\n' +
+    '  1. Abra https://fabig76.github.io/santa-sofia-residentes/\n' +
+    '  2. Click en la pestaña "✏️ Editar mi registro"\n' +
+    '  3. Ingrese su N° de formulario (' + numForm + ') y N° de apartamento\n' +
+    '  4. Modifique los campos que necesite\n\n' +
+    'Si pierde su N° de formulario, contacte a la administración:\n' +
+    'santasofia.clubresidencial@gmail.com\n\n' +
+    '--\nSanta Sofía Club Residencial V.I.S\n' +
+    'NIT 901142051-3\n' +
+    'CR 27 # 44-25, Armenia, Quindío\n';
+
+  try {
+    MailApp.sendEmail(to, subject, body, {
+      cc: 'santasofia.clubresidencial@gmail.com',
+      name: 'Santa Sofía Club Residencial V.I.S'
+    });
+  } catch (e) {
+    Logger.log('Error enviando email de confirmación a ' + to + ': ' + e);
+    throw e; // re-throw para que submitRecord lo capture
+  }
+}
+
 function enviarEmailConfirmacionAdminMud(row, par) {
   const subject = '[Santa Sofía] Nueva reserva de mudanza ' + row[COL_MUD_ID];
   const body =
@@ -2096,6 +2194,408 @@ function vigilanteCheckMudanza(data) {
     );
     sheet.getRange(targetRow, COL_MUD_VIGILANTE + 1).setValue(vigilante);
     return { ok: true, message: 'Check registrado correctamente.', rowNumber: targetRow };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ---------------------------------------------------------------------
+// Endpoint: adminBorrarReservaMudanza (borrar una reserva por ID)
+// F12 — Limpieza de reservas de prueba (05-Oct-2026)
+// Auth: ADMIN_TOKEN (server-side). BORRA la fila física del Sheet.
+// ---------------------------------------------------------------------
+function adminBorrarReservaMudanza(idReserva) {
+  if (!idReserva) return { ok: false, error: 'Falta idReserva.' };
+
+  const sheet = getMudanzasSheet();
+  const last = sheet.getLastRow();
+  if (last < MUDANZAS_HEADER_ROW + 1) return { ok: false, error: 'Sin reservas para eliminar.' };
+
+  const idCol = sheet.getRange(MUDANZAS_HEADER_ROW + 1, COL_MUD_ID + 1, last - MUDANZAS_HEADER_ROW, 1).getValues();
+  let targetRow = -1;
+  for (let i = 0; i < idCol.length; i++) {
+    if (String(idCol[i][0] || '').trim() === idReserva) {
+      targetRow = i + MUDANZAS_HEADER_ROW + 1;
+      break;
+    }
+  }
+  if (targetRow === -1) return { ok: false, error: 'No se encontró la reserva ' + idReserva + '.' };
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(MUDANZAS_LOCK_TIMEOUT_MS)) {
+    return { ok: false, error: 'Otro proceso está modificando mudanzas. Intenta en unos segundos.' };
+  }
+
+  try {
+    sheet.deleteRow(targetRow);
+    return { ok: true, message: 'Reserva ' + idReserva + ' eliminada del Sheet.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function adminBorrarRegistro(idRegistro) {
+  const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
+  const last = sheet.getLastRow();
+  if (last < HEADER_ROW + 1) return { ok: false, error: 'No hay filas para borrar.' };
+
+  const idCol = sheet.getRange(HEADER_ROW + 1, 1, last - HEADER_ROW, 1).getValues();
+  let targetRow = -1;
+  for (let i = 0; i < idCol.length; i++) {
+    if (String(idCol[i][0] || '').trim() === String(idRegistro)) {
+      targetRow = HEADER_ROW + 1 + i;
+      break;
+    }
+  }
+  if (targetRow === -1) return { ok: false, error: 'No se encontró registro con id ' + idRegistro + '.' };
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(MUDANZAS_LOCK_TIMEOUT_MS)) {
+    return { ok: false, error: 'Otro proceso está modificando registros. Intenta en unos segundos.' };
+  }
+
+  try {
+    sheet.deleteRow(targetRow);
+    return { ok: true, deleted: idRegistro, rowNumber: targetRow, message: 'Registro ' + idRegistro + ' eliminado del Sheet.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// =====================================================================
+// Módulo Portal de Arrendatarios (05-Oct-2026)
+// Replica el patrón Cerro Azul (residente.html), adaptado a Santa Sofía.
+// 5 endpoints (R.1..R.5) + 1 helper. Solo append, NO modifica nada existente.
+// Spec: docs/spec-arrendatarios.md
+// =====================================================================
+
+// Helper: busca CC del input en propietario v[6] o slots residentes v[30,35,40,45].
+// Retorna {tipo, slot?, numForm, nombre, cc, correo, celular} o null.
+function verificarAccesoResidenteOPropietario(apto, cc) {
+  const row = findRowByApto(apto);
+  if (!row) return null;
+  const ccNorm = normalizarCC(cc);
+  // Propietario v[6]
+  if (normalizarCC(String(row.values[6] || '')) === ccNorm) {
+    return {
+      tipo: 'Propietario',
+      numForm: String(row.values[0] || ''),
+      nombre: String(row.values[5] || ''),
+      cc: String(row.values[6] || ''),
+      correo: String(row.values[7] || ''),
+      celular: String(row.values[8] || '')
+    };
+  }
+  // Residentes slots 1-4 (v[30], v[35], v[40], v[45])
+  for (let i = 0; i < 4; i++) {
+    const base = 29 + i * 5;
+    if (normalizarCC(String(row.values[base + 1] || '')) === ccNorm) {
+      return {
+        tipo: 'Residente',
+        slot: i + 1,
+        numForm: String(row.values[0] || ''),
+        nombre: String(row.values[base] || ''),
+        cc: String(row.values[base + 1] || ''),
+        correo: String(row.values[base + 2] || ''),
+        celular: String(row.values[base + 3] || '')
+      };
+    }
+  }
+  return null;
+}
+
+// R.1 getEstadoResidente (GET, público)
+// Decide 3 caminos: no existe / vacío / con datos. NO expone numForm/nombres/propietario.
+function getEstadoResidente(apto) {
+  apto = String(apto || '').trim();
+  if (!apto) return { ok: false, error: 'Falta N° de apartamento' };
+
+  const row = findRowByApto(apto);
+  if (!row) return { ok: true, apto: apto, aptoExiste: false };
+
+  // Cuenta cuántos slots 1-4 de residentes tienen NOMBRE
+  let numResidentes = 0;
+  for (let i = 0; i < 4; i++) {
+    const base = 29 + i * 5;
+    if (String(row.values[base] || '').trim()) numResidentes++;
+  }
+
+  return {
+    ok: true,
+    apto: apto,
+    aptoExiste: true,
+    hayResidentes: numResidentes > 0,
+    numResidentes: numResidentes
+    // ⚠️ BUGFIX-018 (Cerro Azul): NO devolver numForm, nombres ni propietario sin CC
+  };
+}
+
+// R.2 verificarResidente (GET, público)
+// Valida CC contra los slots 1-4 de residentes del apto.
+function verificarResidente(apto, cc) {
+  apto = String(apto || '').trim();
+  cc = normalizarCC(cc);
+  if (!apto || !cc) return { ok: false, error: 'Falta apto o cc' };
+
+  const row = findRowByApto(apto);
+  if (!row) return { ok: false, error: 'Apartamento no encontrado.' };
+
+  for (let i = 0; i < 4; i++) {
+    const base = 29 + i * 5;
+    const ccEnSheet = normalizarCC(row.values[base + 1] || '');
+    if (ccEnSheet && ccEnSheet === cc) {
+      return {
+        ok: true,
+        slot: i + 1,
+        datos: {
+          nombre: String(row.values[base] || '').trim(),
+          cc: String(row.values[base + 1] || '').trim(),
+          parentesco: String(row.values[base + 4] || '').trim(),
+          cel: String(row.values[base + 3] || '').trim(),
+          correo: String(row.values[base + 2] || '').trim()
+        }
+      };
+    }
+  }
+
+  return { ok: false, error: 'No se encontró un residente con esa cédula en este apartamento.' };
+}
+
+// R.3 registrarResidente (POST, LockService)
+// Auto-registro cuando TODOS los slots 1-4 de residentes están VACÍOS.
+// Preserva numForm y fecha del propietario (edita fila existente).
+function registrarResidente(data) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    return { ok: false, error: 'Otro residente está registrando en este momento. Intenta en unos segundos.' };
+  }
+  try {
+    const apto = String(data.apto || '').trim();
+    if (!apto) return { ok: false, error: 'Falta N° de apartamento' };
+
+    const row = findRowByApto(apto);
+    if (!row) return { ok: false, error: 'Apartamento no encontrado. Pida al propietario que lo registre primero.' };
+
+    // Verificar que TODOS los slots estén vacíos
+    let slotAsignado = -1;
+    for (let i = 0; i < 4; i++) {
+      const base = 29 + i * 5;
+      if (String(row.values[base] || '').trim()) {
+        return { ok: false, error: 'Este apartamento ya tiene ' + (i + 1) + ' residente(s) registrado(s). Si eres uno de ellos, vuelve a este portal e ingresa tu número de cédula. Si no apareces en la lista, pide al propietario que te agregue.' };
+      }
+      if (slotAsignado === -1) slotAsignado = i + 1;
+    }
+
+    // BUGFIX-013 (Cerro Azul): normalizar r.parentesco -> r.parent
+    const residentesCrudos = Array.isArray(data.residentes) ? data.residentes : [];
+    const residentes = residentesCrudos.map(function (r) {
+      return {
+        nombre: r.nombre || '',
+        cc: r.cc || '',
+        correo: r.correo || '',
+        cel: r.cel || '',
+        parent: r.parentesco || r.parent || ''
+      };
+    });
+    if (residentes.length === 0) return { ok: false, error: 'Debe registrar al menos un residente.' };
+    if (residentes.length > 4) return { ok: false, error: 'Máximo 4 residentes por apartamento.' };
+
+    // Copiar el row completo (preserva TODO lo del propietario: numForm, fechaRegistro,
+    // datos del propietario, parqueaderos, matriculaApto, Tenedor/Arrendatario, parqTer,
+    // inmob, dispositivos, autorizaciones, firma, sección 3 v2.0, etc.)
+    const newRow = row.values.slice();
+    while (newRow.length < NUM_COLS) newRow.push('');
+    newRow[COL_FECHA_EDIT] = Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd HH:mm:ss');
+
+    // Residentes v[29..48] (4 slots x 5 cols)
+    let idx = 29;
+    for (let i = 0; i < 4; i++) {
+      const r = residentes[i] || {};
+      newRow[idx]     = r.nombre || '';
+      newRow[idx + 1] = r.cc || '';
+      newRow[idx + 2] = r.correo || '';
+      newRow[idx + 3] = r.cel || '';
+      newRow[idx + 4] = r.parent || '';
+      idx += 5;
+    }
+
+    // Menores v[49..60] (4 slots x 3 cols)
+    const menores = Array.isArray(data.menores) ? data.menores : [];
+    idx = 49;
+    for (let i = 0; i < 4; i++) {
+      const m = menores[i] || {};
+      newRow[idx]     = m.nombre || '';
+      newRow[idx + 1] = m.edad || '';
+      newRow[idx + 2] = m.parent || m.parentesco || '';
+      idx += 3;
+    }
+
+    // Helper para escribir 6 cols de vehiculo/moto
+    const setVehiculo = function (arr, start, v) {
+      arr[start]     = v.marca || '';
+      arr[start + 1] = v.tipo || '';
+      arr[start + 2] = v.color || '';
+      arr[start + 3] = v.placa || '';
+      arr[start + 4] = v.modelo || '';
+      arr[start + 5] = v.tag || '';
+    };
+    // Vehículos 1-2 v[61..72] y 3-4 v[143..154] (Santa Sofía: 4 vehículos, Cerro Azul: 2)
+    const vehiculos = Array.isArray(data.vehiculos) ? data.vehiculos : [];
+    setVehiculo(newRow, 61, vehiculos[0] || {});
+    setVehiculo(newRow, 67, vehiculos[1] || {});
+    setVehiculo(newRow, 143, vehiculos[2] || {});
+    setVehiculo(newRow, 149, vehiculos[3] || {});
+
+    // Motos 1-2 v[73..84] y 3-4 v[155..166]
+    const motos = Array.isArray(data.motos) ? data.motos : [];
+    setVehiculo(newRow, 73, motos[0] || {});
+    setVehiculo(newRow, 79, motos[1] || {});
+    setVehiculo(newRow, 155, motos[2] || {});
+    setVehiculo(newRow, 161, motos[3] || {});
+
+    // Bicis v[85..92] (2 slots x 4 cols)
+    const bicis = Array.isArray(data.bicis) ? data.bicis : [];
+    idx = 85;
+    for (let i = 0; i < 2; i++) {
+      const b = bicis[i] || {};
+      newRow[idx]     = b.marca || '';
+      newRow[idx + 1] = b.color || '';
+      newRow[idx + 2] = b.clase || '';
+      newRow[idx + 3] = b.serial || '';
+      idx += 4;
+    }
+
+    // Helper para escribir 10 cols de mascota
+    const setMascota = function (arr, start, m) {
+      arr[start]     = m.tipo || '';
+      arr[start + 1] = m.nombre || '';
+      arr[start + 2] = m.raza || '';
+      arr[start + 3] = m.color || '';
+      arr[start + 4] = m.sexo || '';
+      arr[start + 5] = m.vacuna || '';
+      arr[start + 6] = m.manejoEspecial || '';
+      arr[start + 7] = m.registro || '';
+      arr[start + 8] = m.aseguradora || '';
+      arr[start + 9] = m.poliza || '';
+    };
+    // Mascotas 1-2 v[110..129] y 3-4 v[167..186]
+    const mascotas = Array.isArray(data.mascotas) ? data.mascotas : [];
+    setMascota(newRow, 110, mascotas[0] || {});
+    setMascota(newRow, 120, mascotas[1] || {});
+    setMascota(newRow, 167, mascotas[2] || {});
+    setMascota(newRow, 177, mascotas[3] || {});
+
+    // Escribir
+    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
+    sheet.getRange(row.rowNumber, 1, 1, NUM_COLS).setValues([newRow]);
+    return {
+      ok: true,
+      slotAsignado: slotAsignado,
+      message: 'Registro exitoso.'
+      // BUGFIX-017 (Santa Sofía F12): NO devolver numForm del propietario al residente
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// R.4 actualizarResidente (POST, LockService)
+// Edita SOLO el slot N del residente identificado por CC.
+// Re-verifica CC server-side. NO cambia parentesco (decisión D3 simplicidad).
+function actualizarResidente(data) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    return { ok: false, error: 'Otro residente está actualizando en este momento. Intenta en unos segundos.' };
+  }
+  try {
+    const apto = String(data.apto || '').trim();
+    const cc = normalizarCC(data.cc || '');
+    const slot = parseInt(data.slot || '', 10);
+    if (!apto || !cc || !slot || slot < 1 || slot > 4) {
+      return { ok: false, error: 'Datos inválidos (apto, cc, slot requeridos)' };
+    }
+
+    const row = findRowByApto(apto);
+    if (!row) return { ok: false, error: 'Apartamento no encontrado.' };
+
+    // Re-verificar CC contra el slot
+    const base = 29 + (slot - 1) * 5;
+    const ccEnSheet = normalizarCC(row.values[base + 1] || '');
+    if (ccEnSheet !== cc) {
+      return { ok: false, error: 'La cédula no corresponde al slot ' + slot + '.' };
+    }
+
+    const datos = data.datos || {};
+    const newRow = row.values.slice();
+    while (newRow.length < NUM_COLS) newRow.push('');
+    newRow[COL_FECHA_EDIT] = Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd HH:mm:ss');
+
+    // Edita SOLO el slot N (no pisa otros residentes)
+    newRow[base]     = String(datos.nombre || '').trim();
+    newRow[base + 1] = String(datos.cc || '').trim();
+    newRow[base + 2] = String(datos.correo || '').trim();
+    newRow[base + 3] = String(datos.cel || '').trim();
+    // NO cambiar parentesco (v[base+4]) — D3 simplicidad
+    // NO cambiar vehículos/mascotas/contactos del slot (gestión separada)
+
+    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
+    sheet.getRange(row.rowNumber, 1, 1, NUM_COLS).setValues([newRow]);
+    return { ok: true, message: 'Datos actualizados correctamente.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// R.5 clearResidente (POST, LockService + Logger.log)
+// Limpia secciones 5/5.1/6/7/9/10 (residentes, menores, vehículos, motos, bicis, mascotas).
+// SOLO el propietario (CC contra v[6]) puede ejecutar. Logger.log audita.
+function clearResidente(data) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    return { ok: false, error: 'Otro proceso está limpiando. Intenta en unos segundos.' };
+  }
+  try {
+    const apto = String(data.apto || '').trim();
+    const cc = normalizarCC(data.cc || '');
+    if (!apto || !cc) return { ok: false, error: 'Falta apto o cc' };
+
+    const row = findRowByApto(apto);
+    if (!row) return { ok: false, error: 'Apartamento no encontrado.' };
+
+    // Validar CC contra PROPIETARIO v[6]
+    if (normalizarCC(String(row.values[6] || '')) !== cc) {
+      return { ok: false, error: 'Solo el propietario puede limpiar los datos del residente.' };
+    }
+
+    const newRow = row.values.slice();
+    while (newRow.length < NUM_COLS) newRow.push('');
+    newRow[COL_FECHA_EDIT] = Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd HH:mm:ss');
+
+    // Limpiar secciones del residente:
+    // v[29..48] residentes, v[49..60] menores, v[61..72] y v[143..154] vehículos,
+    // v[73..84] y v[155..166] motos, v[85..92] bicis, v[110..129] y v[167..186] mascotas
+    const rangos = [
+      [29, 48], [49, 60],
+      [61, 72], [143, 154],
+      [73, 84], [155, 166],
+      [85, 92],
+      [110, 129], [167, 186]
+    ];
+    for (const r of rangos) {
+      for (let i = r[0]; i <= r[1]; i++) newRow[i] = '';
+    }
+    // Preserva: numForm, fechaRegistro, fechaEdicion, apto, diligencia,
+    // datos del propietario (v[5..9]), parqueaderos (v[10..13], v[187..190]),
+    // matriculaApto, requiereRevision, observMatriculas,
+    // Tenedor/Arrendatario (v[17..20]), parqTer (v[21..23]), inmob (v[24..28]),
+    // llaverosAut/tagsAut (v[93..94]), dispositivos (v[95..109]),
+    // emergencias (v[130..135]), autorizaciones (v[136..138]), firma (v[139..141]),
+    // sección 3 v2.0 (v[191..202])
+
+    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
+    sheet.getRange(row.rowNumber, 1, 1, NUM_COLS).setValues([newRow]);
+    Logger.log('[clearResidente] ' + String(row.values[COL_NUM_FORM] || '') + ' apto ' + apto + ' cc ' + cc + ' secciones 5/5.1/6/7/9/10 eliminadas');
+    return { ok: true, message: 'Datos del residente eliminados correctamente.' };
   } finally {
     lock.releaseLock();
   }
