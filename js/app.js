@@ -627,12 +627,9 @@ async function enviarFormulario() {
   btn.textContent = 'Enviando...';
 
   try {
-    const resp = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      // Sin headers custom: Apps Script Web App requiere preflight CORS simple
-      body: JSON.stringify(payload),
-    });
-    const data = await resp.json();
+    // safePost (definido al final del archivo) maneja cold start de MailApp con retry
+    // y retorna {ok:true, pendingEmail:true, warning:...} si Apps Script responde HTML 500/405
+    const data = await safePost(payload);
     if (!data.ok) {
       showAlert('alert-create', data.error || 'Error desconocido al guardar.', 'err');
       btn.disabled = false;
@@ -661,13 +658,20 @@ function mostrarExito(data) {
   } else {
     $('#success-title').textContent = '¡Registro creado exitosamente!';
     $('#success-num-form').textContent = data.numForm;
-    $('#success-advice').innerHTML = `
+    let adviceHtml = `
       <strong>⚠️ IMPORTANTE: Guarda tu N° de formulario.</strong><br>
       Tu N° de formulario es: <strong style="font-size:18px; letter-spacing:2px;">${data.numForm}</strong><br>
       Lo necesitarás cada vez que quieras editar o actualizar tus datos.<br>
       Guárdalo en un lugar seguro (anota, captura de pantalla, etc.).<br>
       <em>La administración NO puede recuperar este número por ti.</em>
     `;
+    // Si el email no se pudo enviar (cold start MailApp), avisar al residente
+    if (data.pendingEmail || (data.emailSent === false && data.emailWarning)) {
+      const msg = data.warning || data.emailWarning ||
+                 'Su registro fue creado. Estamos procesando el email de confirmación. Si no llega en 5 minutos, verifique su carpeta de spam o contacte a la administración (santasofia.clubresidencial@gmail.com).';
+      adviceHtml += '<br><br><em style="color:var(--warn);">⏳ ' + escapeHtml(msg) + '</em>';
+    }
+    $('#success-advice').innerHTML = adviceHtml;
   }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
