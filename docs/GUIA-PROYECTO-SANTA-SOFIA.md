@@ -1265,4 +1265,65 @@ POST de prueba con `apto=9999` + `diligencia="Tenedor / Otro"` creó registro SS
 ### Nota
 
 - El registro SS-0088 (fila 90) es de prueba y quedó en el Sheet. Si quieres eliminarlo, hazlo manualmente (no hay endpoint de delete para Registros, solo para Mudanzas).
-- Si en el futuro se quiere migrar registros viejos, habría que hacer un script que lea el Sheet y cambie "Tenedor / Otro" → "Encargado" en v[4].
+- **NOTA 14-Oct-2026:** El endpoint `adminBorrarRegistro` SÍ existe ahora (deploy V26). Ver §19 abajo.
+
+---
+
+## 19. Email de confirmación post-envío (V26, 14-Oct-2026) — DESPLEGADO
+
+### Problema detectado
+
+Cuando un residente terminaba de llenar el formulario de registro, el código SS-XXXX se generaba y se mostraba en la success-card de pantalla, pero el residente NO recibía ningún email con ese código. Si el residente no anotaba el código en pantalla (muchos no lo hacían), lo perdía para siempre — la administración NO puede recuperarlo (el texto en pantalla lo dice textualmente).
+
+### Solución (deploy V26)
+
+**Backend (Codigo.gs V26, md5 `65dc77187c2baf5377d0276fe55a5743`):**
+
+- `enviarEmailConfirmacionResidente(data, numForm, editMode)` — nueva función al inicio de la sección Emails (línea 1817). Envía email al titular del registro con CC a `santasofia.clubresidencial@gmail.com`. Asunto: "Registro creado/actualizado — Santa Sofía Club Residencial V.I.S — N° SS-XXXX". Cuerpo con saludo, datos del registro, aviso de guardar el código, instrucciones para editar.
+
+- `submitRecord()` modificado — agrega bloque try/catch antes del return (línea 729-739). Si falla el email, el registro SIGUE creado y response retorna `emailSent: false, emailWarning: '...'`.
+
+- `adminBorrarRegistro(idRegistro)` — nuevo endpoint (línea 2237) paralelo a `adminBorrarReservaMudanza`. Borra filas del Sheet "Registros" por numForm. Requiere `ADMIN_TOKEN`. Para limpieza de registros de prueba.
+
+**Frontend (`js/app.js` V2, md5 `2c3022e88313047a93385d716dd95f04`):**
+
+- `enviarFormulario()` migrado de `fetch` directo a `safePost()` — usa el helper que ya existía con retry contra cold start de MailApp.
+
+- `mostrarExito()` muestra warning amarillo si `data.pendingEmail` o `data.emailSent === false` — informa al residente que revise spam si no recibe el email en 5 minutos.
+
+### Flujo end-to-end (cuando residente crea un nuevo apartamento)
+
+1. Residente llena el form en `https://fabig76.github.io/santa-sofia-residentes/` (apartamento, datos del titular, autorización Ley 1581, firma)
+2. Click "📤 Enviar formulario"
+3. Frontend hace POST a Apps Script `/submit`
+4. Backend `submitRecord()` valida, escribe fila al Sheet con `numForm` correlativo (ej. SS-0106)
+5. Backend `enviarEmailConfirmacionResidente()` envía email al `correoProp` + CC admin
+6. Frontend recibe response `{ok:true, numForm:"SS-0106", emailSent:true}`
+7. Frontend muestra success-card con SS-0106 + botones "Imprimir comprobante" / "Enviar otro registro"
+
+### Pruebas F7 verificadas (14-Oct-2026)
+
+| Test | Resultado |
+|---|---|
+| POST submit TEST-2000 editMode=true | ✅ ok:true, numForm:TEST-2000, emailSent:true |
+| POST submit apto=9996 (creación) | ✅ ok:true, numForm:SS-0104, emailSent:true |
+| POST submit apto=9994 | ✅ ok:true, numForm:SS-0105, emailSent:true |
+| POST submit apto=9993 (correo real) | ✅ ok:true, numForm:SS-0106, emailSent:true |
+| POST submit correoInválido | ✅ Rechazado "Correo del titular inválido" (regex) |
+| adminBorrarRegistro('NOEXISTE') | ✅ "No se encontró registro" (token OK) |
+
+### Patrón a aplicar en otros módulos
+
+Cualquier endpoint de Apps Script que ESCRIBA al Sheet y necesite notificar al usuario:
+1. Crear función `enviarEmailXxxUsuario(data, ...)` clonando de `enviarEmailConfirmacionResidente` (línea 1817) o `enviarEmailConfirmacionResidenteMud` (línea 1837)
+2. Llamarla con `try/catch` dentro de la función de Sheet
+4. Retornar `{emailSent:bool, emailWarning:string|null}` en el response
+5. Frontend usa `safePost()` (no `fetch` directo)
+6. `mostrarExito()`-equivalente muestra pendingEmail/emailSent al usuario
+
+### Referencia
+
+- `docs/spec-email-post-envio.md` — spec completo (332 líneas, decisiones D1-D8, 10 secciones)
+- `docs/SESIONES.md` (entrada 14-Oct-2026) — bitácora del F14
+- `README.md` — sección "Deploy Email post-envío"
+- Skill: `references/email-post-envio-v26.md` + `references/email-post-envio-f14.md` + `references/admin-token-mismatch-pitfall.md`
