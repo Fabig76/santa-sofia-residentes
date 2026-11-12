@@ -982,3 +982,35 @@ Spec: `docs/spec-arrendatarios.md`. Replica el patrón Cerro Azul (`residente.ht
 **Verificado**: POST a submit con apto 2000 + matriculaApto manual → error nuevo sin numForm. ✓
 
 **Pendiente**: actualizar README.md y GUIA §24/§25 con este cambio (próximo commit).
+
+## 12-Nov-2026 — V27: anticipación 1 día calendario + cancelación 12 h
+
+### Cambio
+- `MUDANZAS_ANTICIPACION_DIAS` 2 → 1 (se puede reservar desde mañana).
+- `MUDANZAS_CANCELACION_HORAS` 24 → 12.
+- Cambio 100% append-only: solo se tocaron constantes y comentarios del backend. El mensaje de
+  error de `reservarMudanza` conserva la errata "1 días calendario" (decisión del operador).
+
+### Hallazgo (analizado antes de implementar)
+- La regla anterior NO eran 48 h: eran "2 días calendario" con comparación por fecha, así que el
+  aviso real a la administración variaba entre ~32 h y ~56 h.
+- Con 1 día calendario el aviso real baja a ~8 h. Combinado con cancelación a 12 h, hay una
+  franja en la que una reserva nace NO cancelable online (slot 08:00 reservado tras las 20:00;
+  slot 10:00 tras las 22:00). Muestreo exhaustivo de 336 combinaciones: 12,5% con ventana
+  negativa. **No se ha observado en ninguna de las 17 reservas reales** (aviso mínimo real 43,1 h).
+
+### Verificación
+- Sin deploy todavía (el operador despliega manualmente "Nueva versión").
+- Diff de `apps-script/Codigo.gs` contra `main`: exactamente 4 líneas (L1312-1313 comentarios,
+  L1322-1323 constantes); ninguna función editada.
+- `node --check js/app.js` OK. Calendario frontend `+2` → `+1` (sincronizado con la constante).
+- Grep de "2 días calendario / 48 h / 24 h antes" en README, GUIA, spec, index.html y app.js:
+  solo quedan las menciones históricas "(antes 2 días)" / "(antes 24 h)" en spec-mudanzas.md.
+- Reversión: `git revert` de los 2 commits de código (en un clon temporal) deja `Codigo.gs` y
+  `app.js` idénticos a `main`.
+- NO probado en runtime (sin deploy, sin POST al Web App).
+
+### Sin comprobar
+- La zona horaria del proyecto Apps Script (no hay `appsscript.json` en el repo): afecta a
+  `cancelarMudanza`, que interpreta la hora del slot en la zona del script. Pendiente de que el
+  operador lo compruebe en Configuración del proyecto.

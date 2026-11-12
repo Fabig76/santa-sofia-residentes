@@ -1018,7 +1018,8 @@ const M = {
     const cont = $('#mudCalendario');
     const hoy = new Date();
     const minFecha = new Date(hoy);
-    minFecha.setDate(minFecha.getDate() + 2);
+    // Mantener sincronizado con MUDANZAS_ANTICIPACION_DIAS (apps-script/Codigo.gs:1322)
+    minFecha.setDate(minFecha.getDate() + 1);
     minFecha.setHours(0, 0, 0, 0);
 
     let html = '';
@@ -1058,7 +1059,7 @@ const M = {
       const deshabilitado = esDomingo || muyPronto;
       const selClass = (this.state.fecha === fechaStr) ? ' mud-dia-seleccionado' : '';
       const disClass = deshabilitado ? ' mud-dia-deshabilitado' : '';
-      const title = esDomingo ? 'Domingo: no hay servicio' : muyPronto ? 'Menos de 48h de anticipación' : 'Click para ver horarios';
+      const title = esDomingo ? 'Domingo: no hay servicio' : muyPronto ? 'Solo se puede reservar a partir de mañana' : 'Click para ver horarios';
       html += '<button type="button" class="mud-dia' + disClass + selClass + '" data-fecha="' + fechaStr + '" title="' + title + '" ' + (deshabilitado ? 'disabled' : '') + '>' + d + '</button>';
     }
     html += '</div></div></div>';
@@ -1239,7 +1240,8 @@ const M = {
   },
 
   async cancelarReserva(idReserva) {
-    if (!confirm('¿Confirmas que quieres cancelar la reserva ' + idReserva + '?\n\nNo se puede cancelar con menos de 24 horas de anticipación.')) return;
+    // Texto sincronizado con MUDANZAS_CANCELACION_HORAS (apps-script/Codigo.gs:1323)
+    if (!confirm('¿Confirmas que quieres cancelar la reserva ' + idReserva + '?\n\nSolo se puede cancelar hasta 12 horas antes del inicio de la mudanza. Si faltan menos de 12 horas, contacta a la administración.')) return;
     const payload = {
       action: 'cancelarMudanza',
       numForm: this.state.numForm,
