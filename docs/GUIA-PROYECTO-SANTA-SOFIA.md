@@ -821,7 +821,7 @@ Los residentes pueden reservar el ascensor de mudanzas desde la pestaña "Agenda
 | `?action=dispMudanzas` | GET | Devuelve slots disponibles por torre (con OPCIÓN B) |
 | `?action=misReservas` | GET | Lista todas las reservas del numForm/apto |
 | `action=reservarMudanza` | POST | Crea una reserva (con LockService) |
-| `action=cancelarMudanza` | POST | Cancela una reserva (24h antes mínimo) |
+| `action=cancelarMudanza` | POST | Cancela una reserva (hasta 12 h antes del inicio) |
 
 **Sheet nueva pestaña "Mudanzas"** — 19 columnas:
 - ID Reserva, N° Formulario, N° Apartamento, Tipo Mudanza, Torre, Ascensor, Fecha Mudanza, Hora Inicio, Hora Fin, Nombre Propietario, CC Propietario, Celular, Correo, Empresa Mudanza, Placa Vehiculo, Observaciones, Fecha Reserva, Estado, Hash Dedupe.
@@ -838,8 +838,8 @@ Se crea **idempotentemente** al primer uso (función `getMudanzasSheet()` en `Co
 | Slots L-V | 08:00-10:00, 10:00-12:00, 13:00-15:00, 15:00-17:00 (4 slots de 2h) |
 | Slots Sábado | 08:00-10:00, 10:00-12:00 (2 slots, solo mañana) |
 | Domingo y festivos | NO disponible (mensaje al usuario, sin rechazo automático) |
-| Anticipación mínima | 2 días calendario completos |
-| Cancelación permitida | hasta 24 horas antes |
+| Anticipación mínima | 1 día calendario (desde mañana; aviso real ~8 h–~32 h) |
+| Cancelación permitida | hasta 12 horas antes del inicio del slot |
 | Diligencia autorizada | "Propietario" o "Tenedor / Otro" (NO "Arrendatario", NO se agrega "Inmobiliaria") |
 | Tipo de mudanza | "Salida" (del arrendatario actual) o "Ingreso" (del nuevo arrendatario) |
 | Email admin | santasofia.clubresidencial@gmail.com |
@@ -1085,7 +1085,7 @@ Se auditaron los 3 portales + backend Apps Script V20. Reporte completo en `docs
 
 - Token inválido → "Token invalido" (server-side, en todos los endpoints)
 - Torre inválida → validación whitelist (Naranja/Amarilla/Verde/Azul)
-- Fecha pasada (< 2 días) → "Las mudanzas deben agendarse con al menos 2 días..."
+- Fecha demasiado próxima (hoy o anterior) → "Las mudanzas deben agendarse con al menos 1 días calendario..."
 - CC incorrecta → validación con normalizarCC (solo dígitos)
 - LockService.getScriptLock (timeout 30s) previene race conditions en reservar/cancelar/check-in
 - Hash dedupe usa PAR (no torre) — OPCIÓN B correcta

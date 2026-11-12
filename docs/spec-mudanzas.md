@@ -15,8 +15,8 @@ Agregar al formulario público de Santa Sofía (https://fabig76.github.io/santa-
 una tercera pestaña "Agendar mudanza" que permita a los propietarios —o a las
 inmobiliarias que los representan, o al encargado— reservar UNO de los **2 ascensores
 efectivos** habilitados para mudanzas (1 por par de torres: Naranja+Amarilla comparten
-uno; Verde+Azul comparten otro) en franjas de 2 horas, con al menos 48 horas de
-anticipación.
+uno; Verde+Azul comparten otro) en franjas de 2 horas, con al menos 1 día calendario de
+anticipación (se puede reservar desde el día siguiente).
 
 El sistema NO modifica las 203 columnas existentes del Sheet `Registros`.
 Agrega una pestaña nueva `Mudanzas` al Sheet y 4 endpoints nuevos al Apps Script.
@@ -43,8 +43,8 @@ pero el bloqueo se hace por **lógica del backend** (helper `parDeTorre()`).
 | Slots Lunes a Viernes | 08:00-10:00 / 10:00-12:00 / 13:00-15:00 / 15:00-17:00 (4 slots de 2h) ← confirmado igual |
 | Slots Sábado | 08:00-10:00 / 10:00-12:00 (2 slots, solo mañana) ← confirmado igual |
 | Domingo y festivos | NO disponible (mensaje al usuario, sin rechazo automático) ← asumido igual |
-| Anticipación mínima | 2 días calendario completos (no se puede agendar para mañana) ← confirmado igual |
-| Cancelación permitida | hasta 24 horas antes de la mudanza ← confirmado igual |
+| Anticipación mínima | 1 día calendario (se puede agendar para mañana) ← cambiado 2026-11 (antes 2 días) |
+| Cancelación permitida | hasta 12 horas antes del inicio de la mudanza ← cambiado 2026-11 (antes 24 h) |
 | Límite de reservas por residente | sin límite ← asumido igual |
 | Campos obligatorios | solo Torre + Fecha + Slot |
 | Campos opcionales | Empresa mudanza, Placa vehículo, Observaciones |
@@ -206,7 +206,7 @@ Algoritmo (OPCIÓN B — bloqueo por par, NO por torre):
      · AND fecha = fecha del slot
      · AND estado = "Confirmada"
      · Si alguna reserva cumple → disponible:false (para todo el par)
-  5. Excluye slots con fecha < hoy + 2 días (anticipación 48h)
+  5. Excluye slots con fecha < hoy + 1 día calendario (comparación por fecha, TZ America/Bogota)
   6. Retorna lista completa (incluyendo no disponibles)
 
 Importante: la `torre` que devuelve el backend en la respuesta es la del residente
@@ -226,7 +226,7 @@ Validaciones (todas server-side, en orden, OPCIÓN B):
   1. verificarPropietario (mismo flujo que 4.1)
   2. torre ∈ {"Naranja","Amarilla","Verde","Azul"}, ascensor == "A"
   3. tipoMudanza ∈ {"Salida","Ingreso"}
-  4. fecha es fecha válida futura ≥ hoy + 2 días calendario
+  4. fecha es fecha válida futura ≥ hoy + 1 día calendario
   5. horaInicio/horaFin ∈ slots predefinidos
   6. NO existe ya reserva "Confirmada" en el PAR al que pertenece la torre
      · busca: torreReportada ∈ [torres del par] AND ascensor = A AND fecha = X AND horaInicio = Y
@@ -249,7 +249,7 @@ Validaciones:
   1. verificarPropietario (mismo numForm/apto/ccProp)
   2. Reserva existe en Mudanzas con idReserva
   3. Reserva.col R (Estado) == "Confirmada"
-  4. fecha mudanza ≥ hoy + 1 día (24h anticipación)
+  4. (inicio del slot − ahora) ≥ 12 horas reales
   5. numForm/apto de la reserva coinciden con input
 Si OK:
   · Marca Estado = "Cancelada" (NO borra fila)
@@ -324,8 +324,8 @@ const MUDANZAS_PARES = [
 const MUDANZAS_ASCENSOR = 'A';
 
 // Reglas de tiempo (iguales Cerro Azul)
-const MUDANZAS_ANTICIPACION_DIAS = 2;
-const MUDANZAS_CANCELACION_HORAS = 24;
+const MUDANZAS_ANTICIPACION_DIAS = 1;
+const MUDANZAS_CANCELACION_HORAS = 12;
 const MUDANZAS_LOCK_TIMEOUT_MS   = 30000;
 
 // Email del admin
@@ -510,14 +510,24 @@ const M = {
 2. Admin puede cancelar manualmente desde Sheet si recibe queja
 3. **No rechazamos automáticamente** — la decisión es del usuario
 
-### C8.6 Reserva con menos de 48h de anticipación
+### C8.6 Reserva para hoy (anticipación < 1 día calendario)
 
 **Probabilidad:** MEDIA
 **Impacto si ocurre:** NINGUNO (rechazado por backend)
 **Mitigación:**
-1. Backend valida `fecha >= hoy + 2 días calendario`
+1. Backend valida `fecha >= hoy + 1 día calendario`
 2. Frontend muestra mensaje específico
-3. Slots con < 48h se renderizan en gris en el calendario
+3. Los días anteriores a mañana se renderizan en gris en el calendario (día completo, no por slot)
+
+### C8.6b Reserva que nace no cancelable por el residente
+
+**Escenario:** con anticipación de 1 día calendario, el aviso real puede bajar a ~8 h
+(reserva el día D a las 23:59 → slot del D+1 a las 08:00). Como la cancelación exige ≥ 12 h,
+esa reserva se crea pero NO puede cancelarse online: hay que contactar a la administración.
+
+- Afecta a los slots 08:00 (reservados después de las 20:00) y 10:00 (después de las 22:00).
+- Los slots 13:00 y 15:00 siempre son cancelables (mín. +1 h / +3 h).
+- En las 17 reservas reales del Sheet (MD-0001..MD-0017) no se ha dado ningún caso.
 
 ### C8.7 Backend tira error 500 o timeout
 

@@ -45,14 +45,14 @@ Arquitectura:
   - `?action=dispMudanzas` (GET): devuelve slots disponibles por par de torres (OPCIÓN B: Naranja+Amarilla y Verde+Azul comparten ascensor).
   - `?action=misReservas` (GET): lista todas las reservas del numForm/apto (Confirmadas + Canceladas).
   - `action=reservarMudanza` (POST): crea reserva con bloqueo por par (LockService.getScriptLock).
-  - `action=cancelarMudanza` (POST): cancela una reserva del numForm/apto (24h antes mínimo).
+  - `action=cancelarMudanza` (POST): cancela una reserva del numForm/apto (hasta 12 h antes del inicio).
 - **Frontend V2.2** — Nueva pestaña "Agendar mudanza" con 4 vistas:
   - Vista 1: Login (verifica propietario).
   - Vista 2: Formulario (tipo, torre, fecha+horario, datos adicionales).
   - Vista 3: Confirmación (muestra ID Reserva + botones "Hacer otra" / "Ver mis reservas").
   - Vista 4: Mis reservas (lista todas, permite cancelar Confirmadas).
 - **Sheet nueva pestaña "Mudanzas"** — 19 columnas, creada idempotentemente al primer uso.
-- **Reglas:** 2 días calendario de anticipación, slots L-V (08-10,10-12,13-15,15-17), sábado (08-10,10-12), domingo no hay servicio.
+- **Reglas:** 1 día calendario de anticipación (se puede reservar desde mañana), cancelación hasta 12 h antes del inicio, slots L-V (08-10,10-12,13-15,15-17), sábado (08-10,10-12), domingo no hay servicio.
 - **OPCIÓN B** — Las 4 torres (Naranja, Amarilla, Verde, Azul) están agrupadas en 2 pares que comparten ascensor: Naranja+Amarilla, Verde+Azul. Un slot ocupado en una torre bloquea el mismo slot en la otra torre del par.
 
 **Deploy Admin v2.0** (05-Oct-2026, Apps Script Versión 18):
@@ -160,7 +160,7 @@ Los residentes pueden reservar el ascensor de mudanzas desde la pestaña "Agenda
 **Requisitos:**
 - Tener un SS-XXXX activo (haber enviado al menos el formulario de residentes una vez).
 - Ser el propietario del inmueble o el encargado autorizado (la cédula del propietario debe coincidir).
-- Reservar con al menos 2 días calendario de anticipación.
+- Reservar con al menos 1 día calendario de anticipación (desde el día siguiente).
 
 **Ascensores disponibles:**
 - 4 torres (Naranja, Amarilla, Verde, Azul), agrupadas en 2 pares que comparten ascensor:
@@ -174,7 +174,7 @@ Los residentes pueden reservar el ascensor de mudanzas desde la pestaña "Agenda
 - Domingo y festivos: no hay servicio.
 
 **Cancelación:**
-- Permitida hasta 24 horas antes de la mudanza.
+- Permitida hasta 12 horas antes del inicio de la mudanza.
 - Vista "Mis reservas" muestra todas las reservas del residente (Confirmadas + Canceladas).
 - Click "✕ Cancelar reserva" en una reserva Confirmada para cancelarla.
 
