@@ -709,6 +709,11 @@
         <div class="section-body">
           <label class="radio-row"><input type="radio" name="mudTipo" value="Salida"> <strong>Salida</strong> del arrendatario actual</label>
           <label class="radio-row"><input type="radio" name="mudTipo" value="Ingreso"> <strong>Ingreso</strong> del nuevo arrendatario</label>
+          <label class="radio-row"><input type="radio" name="mudTipo" value="Salida de elementos"> <strong>Salida</strong> únicamente de elementos</label>
+          <label class="radio-row"><input type="radio" name="mudTipo" value="Ingreso de elementos"> <strong>Ingreso</strong> únicamente de elementos</label>
+          <div id="mudTipoAviso" class="alert alert-info hidden" style="margin-bottom:0;">
+            <strong>Importante:</strong> en la sección <strong>4 · Observaciones</strong> escriba los elementos autorizados (ej.: nevera, lavadora, 4 cajas). La portería solo dejará pasar lo que quede escrito ahí.
+          </div>
         </div>
       </div>
 
@@ -745,13 +750,13 @@
       </div>
 
       <div class="section">
-        <div class="section-head"><span><span class="section-num">4</span>Datos adicionales (opcionales)</span><span class="arrow">▼</span></div>
+        <div class="section-head"><span><span class="section-num">4</span>Datos adicionales</span><span class="arrow">▼</span></div>
         <div class="section-body">
           <div class="row">
             <div class="field"><label>Empresa de mudanza</label><input type="text" id="mudEmpresa" placeholder="Ej: Mudanzas XYZ"></div>
             <div class="field"><label>Placa del vehículo</label><input type="text" id="mudPlaca" placeholder="Ej: ABC123" maxlength="10"></div>
           </div>
-          <div class="field"><label>Observaciones</label><textarea id="mudObservaciones" rows="2" placeholder="Información adicional"></textarea></div>
+          <div class="field"><label>Observaciones</label><textarea id="mudObservaciones" rows="2" placeholder="Información adicional. Si es solo de elementos, escriba aquí cuáles (ej.: nevera, lavadora, 4 cajas)"></textarea></div>
         </div>
       </div>
 
