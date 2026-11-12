@@ -1697,8 +1697,8 @@ function reservarMudanza(data) {
   if (MUDANZAS_TORRES.indexOf(torre) === -1) {
     return { ok: false, error: 'Torre inválida. Debe ser Naranja, Amarilla, Verde o Azul.' };
   }
-  if (!['Salida', 'Ingreso'].includes(tipoMudanza)) {
-    return { ok: false, error: 'Tipo de mudanza inválido. Debe ser Salida o Ingreso.' };
+  if (!['Salida', 'Ingreso', 'Salida de elementos', 'Ingreso de elementos'].includes(tipoMudanza)) {
+    return { ok: false, error: 'Tipo de autorización inválido.' };
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
     return { ok: false, error: 'Fecha inválida. Use formato YYYY-MM-DD.' };
@@ -1914,7 +1914,7 @@ function enviarEmailConfirmacionAdminMud(row, par) {
     'Apartamento:   ' + row[COL_MUD_APTO] + '\n' +
     'Celular:       ' + row[COL_MUD_CEL] + '\n' +
     'Correo:        ' + row[COL_MUD_CORREO] + '\n' +
-    'Tipo:          ' + row[COL_MUD_TIPO] + ' de arrendatario\n' +
+    'Tipo:          ' + etiquetaTipoMudanza(row[COL_MUD_TIPO]) + '\n' +
     'Torre:         ' + row[COL_MUD_TORRE] + ' (par ' + par + ')\n' +
     'Ascensor:      ' + row[COL_MUD_ASCENSOR] + '\n' +
     'Fecha:         ' + row[COL_MUD_FECHA] + ' ' + row[COL_MUD_HORA_INI] + '-' + row[COL_MUD_HORA_FIN] + '\n' +
@@ -1934,11 +1934,14 @@ function enviarEmailConfirmacionResidenteMud(row) {
     'Su reserva de mudanza ha sido confirmada:\n\n' +
     'ID Reserva:    ' + row[COL_MUD_ID] + '\n' +
     'Apartamento:   ' + row[COL_MUD_APTO] + '\n' +
-    'Tipo:          ' + row[COL_MUD_TIPO] + ' de arrendatario\n' +
+    'Tipo:          ' + etiquetaTipoMudanza(row[COL_MUD_TIPO]) + '\n' +
     'Torre:         ' + row[COL_MUD_TORRE] + '\n' +
     'Ascensor:      ' + row[COL_MUD_ASCENSOR] + '\n' +
     'Fecha:         ' + row[COL_MUD_FECHA] + '\n' +
-    'Horario:       ' + row[COL_MUD_HORA_INI] + ' a ' + row[COL_MUD_HORA_FIN] + '\n\n' +
+    'Horario:       ' + row[COL_MUD_HORA_INI] + ' a ' + row[COL_MUD_HORA_FIN] + '\n' +
+    (String(row[COL_MUD_TIPO]).indexOf('elementos') !== -1
+      ? 'Elementos:     ' + (row[COL_MUD_OBS] || '(no indicados)') + '\n' : '') +
+    '\n' +
     'Recuerde: la vigilancia NO permite ingreso en dias festivos, ' +
     'aunque usted tenga reserva. Verifique que la fecha seleccionada no sea festivo.\n\n' +
     'Para cancelar su reserva, ingrese nuevamente al formulario con su ' +
@@ -2168,6 +2171,7 @@ function vigilanteVerMudanzas(fecha) {
       realizada: String(row[COL_MUD_REALIZADA] || ''),
       fechaCheck: String(row[COL_MUD_FECHACHECK] || ''),
       vigilante: String(row[COL_MUD_VIGILANTE] || ''),
+      observaciones: String(row[COL_MUD_OBS] || ''),
       rowNumber: i + MUDANZAS_HEADER_ROW + 1
     });
   }
@@ -2627,4 +2631,10 @@ function clearResidente(data) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// V29b — etiqueta legible del tipo para los correos
+function etiquetaTipoMudanza(tipo) {
+  const t = String(tipo || '');
+  return t.indexOf('elementos') !== -1 ? t : t + ' de arrendatario';
 }
