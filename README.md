@@ -7,6 +7,9 @@ Arquitectura:
 - Backend Google Apps Script Web App.
 - Base principal en Google Sheets.
 - Lookup de matrículas desde Google Sheets nativo de Santa Sofía.
+- Interfaz "vidrio" con **tema claro/oscuro** (V31, 12-Nov-2026): botón de tema en el grupo de
+  pestañas (o en el encabezado de vigilantes/arrendatario) que alterna Automático → Claro → Oscuro;
+  portada con las 4 torres en 3D. Solo visual: `assets/theme.css` + `js/theme.js`.
 
 ## Estado actual (05-Oct-2026)
 
@@ -196,7 +199,7 @@ Los residentes pueden reservar el ascensor de mudanzas desde la pestaña "Agenda
 
 ## Documentación
 
-- `docs/GUIA-PROYECTO-SANTA-SOFIA.md` — guía completa del proyecto (1335 líneas)
+- `docs/GUIA-PROYECTO-SANTA-SOFIA.md` — guía completa del proyecto (1337 líneas)
 - `docs/SESIONES.md` — bitácora cronológica de fixes y eventos relevantes
 - `docs/spec-mudanzas.md` — spec del módulo de mudanzas (683 líneas, OPCIÓN B)
 - `docs/spec-mudanzas-tipos-elementos-v29b.md` — spec de los 4 tipos de mudanza, incluidos

@@ -1134,3 +1134,83 @@ acoplar el arreglo de un bug al rediseño visual completo.
 - 🟡 En móvil la portada 3D empuja las pestañas por debajo del fold (~541 px).
 - 🟡 El botón de tema queda fuera del grupo de pestañas (convención de UI del operador).
 - 🟡 El azul de marca pasa a verde `#1F5F4A`; los radios pasan de 16 a 18 px.
+
+---
+
+## 12-Nov-2026 — V31: rediseño vidrio (claro/oscuro + torres 3D)
+
+### Qué cambió
+Rediseño **solo visual** de las 4 páginas públicas (`index.html`, `admin.html`, `vigilantes.html`,
+`arrendatario.html`): superficies de vidrio translúcido, **tema claro y oscuro** con botón de tema
+(Automático → Claro → Oscuro, guardado en `localStorage['ss-theme']`), portada con las 4 torres en
+3D (CSS puro) en `index.html`, índice lateral de secciones (≥1400 px) y tarjeta 3D del N° de
+formulario con botón "Copiar número".
+
+Base: paquete **versión 2** del analista (Drive id `1l1INPL5Hpuk3BeyHSnVoH67nU7Yp1scZ`, parche
+md5 `5e4abc306b2424ecf7f243e147f12dd7`), que ya corregía los pendientes listados en V30
+(impresión en oscuro, portada en móvil, botón fuera del grupo, radios). Commits: `52f7471`
+(feature) + merge `6642811`.
+
+Archivos: nuevos `assets/theme.css` (686 líneas, md5 `db06b76a1b8e2419fe47a56cf36e021b`) y
+`js/theme.js` (314 líneas, md5 `7c3d5cc83629c4155c0eb6541f57fbaa`); en los 4 HTML, 2 líneas antes
+de `</head>` (después de `styles.css`/`arrendatario.css`/`<style>`) y 1 antes de `</body>`;
+`index.html`: 2 estilos fijos del bloque "Parqueaderos" → clases `ss-aviso`/`ss-mark`;
+`js/vigilantes.js`: 2 fondos fijos → variables con respaldo (solo strings de estilo).
+**Sin cambios** en `app.js`, `admin.js`, `arrendatario.js`, `clear-residente.js`, `Codigo.gs`, ni
+en `id=`/`name=`/`data-*`. La regla `.alert:not(.hidden)` de `styles.css` (V30) sigue intacta.
+Sin deploy de Apps Script (V29 sigue vigente).
+
+### Ajustes propios sobre la v2
+- **N1 — desborde de 1-2 px a 390 px:** al girar, la base de la escena 3D daba `scrollWidth`
+  391-392 (medido en 30 fases del giro). `overflow:hidden` en `.ss-scene` lo corregía pero cortaba
+  las esquinas de la base, así que se usó `overflow-x: clip` en `.ss-hero` (≤720 px): recorta solo
+  en horizontal y en el borde de la pantalla. Resultado: **390 en las 30 fases**. En navegadores
+  sin `overflow: clip` (Safari < 16) queda como antes (1-2 px), sin otro efecto.
+- **N2 — botón de tema dentro de `role="tablist"`:** se probó `role="none"` con axe-core 4.14 y
+  **no sirve**: un `<button>` enfocable ignora `role="none"` (regla ARIA de conflicto), axe seguía
+  marcando `aria-required-children` (crítico) y añadía `presentation-role-conflict` y
+  `aria-allowed-role`. Solución: `theme.js` envuelve `.mode-tabs` en un `.ss-seg` que lleva el
+  aspecto de grupo, y el botón va dentro de `.ss-seg` junto a la lista, no dentro de ella. Se
+  mueve el mismo nodo, así que las pestañas conservan sus eventos de `app.js`. Visualmente es el
+  mismo grupo (criterio del operador: "todo integrado, nada suelto"). No hay navegación por
+  flechas en las pestañas (no existía antes), así que no se rompe nada.
+- **N4 — "Copiar número":** respaldo real si no hay Clipboard API o falla: `<textarea>` temporal +
+  `execCommand('copy')`, luego `execCommand('copy')` sobre la selección del número. En todos los
+  casos el número queda **seleccionado** en pantalla; si nada funciona, el botón dice
+  "Número seleccionado: cópielo a mano".
+- Extra: la portada (`<section>`) lleva `aria-label="Portada"` (axe `region`: 3 → 1, igual que antes).
+
+### Decisión N3 (operador)
+El aviso legal de la Ley 1581 (`.legal-banner`) **no se imprime** (`theme.css`, `@media print`).
+Se queda así: el comprobante es un documento de entrega, no un formulario, y el texto de la
+Ley 1581 ya está en el formulario.
+
+### Verificación (Playwright, en local y luego en producción — mismos resultados)
+| # | Qué | Medido |
+|---|---|---|
+| V1 | Consola | 0 errores JS en las 4 páginas |
+| V2 | Botón de tema | (auto) → light → dark → (auto) en las 4; dark y light persisten al recargar |
+| V3 | Fix V30 | `#alert-edit` block 41 px "Ingresa tu N° de formulario."; `#mudTipoAviso` block 62 px con "Salida de elementos", oculto con "Salida" |
+| V4 | Impresión del comprobante | 1 elemento claro (botón "Enviar otro registro", blanco sobre verde) en oscuro manual, oscuro del sistema y claro. Formulario completo en oscuro: 13, todos blanco sobre verde (números de sección + botón) |
+| V5 | Móvil 390x844 | `scrollWidth` 390 (máx. de 30 fases) en las 4 páginas; pestañas en y=462-580 (sin scroll); portada 120 px |
+| V6 | Contraste WCAG | 0 textos por debajo de 4.5:1 (3:1 grandes) en claro y oscuro, 4 páginas + 3 vistas de index |
+| V7 | Portada 3D | 4 torres + 2 núcleos; Naranja↔Amarilla, Verde↔Azul |
+| V8 | Pestañas | Crear/Editar/Mudanza cambian de vista; Arrendatario navega; secciones se pliegan |
+| V9 | Sin lógica | ningún JS de lógica ni `apps-script/` en `git diff main` |
+| — | axe-core | rediseño: menos violaciones que `main` (desaparecen 6 de `color-contrast`); las demás (`label`, `heading-order`, `region`) ya existían |
+| — | No regresión (prod vs `main` previo) | form vacío: 9 errores, 0 peticiones al backend; Editar con N° inexistente: alerta "No se encontró…" (backend V29 responde); Arrendatario: error visible y se oculta a los 8 s; alertas `hidden` ocultas, `#alert-exito` visible |
+
+`tests_local.py`: 1 fallo (`frontend queda desconectado hasta URL /exec real`) — **ya fallaba igual
+en `main`** (la prueba es anterior a la URL real); no tiene que ver con el rediseño.
+
+### Sin comprobar (necesita datos reales)
+- Admin con un apto real (resumen, tags, llaveros, historial, tabla de Mudanzas) en claro/oscuro.
+- Vigilantes con un apto real y "Ver todas" (tarjetas, "Elementos autorizados", Sí/No realizada).
+- Pantalla de éxito real tras guardar `TEST-2000` y su impresión física (se probó simulando la tarjeta).
+- Calendario de mudanzas con disponibilidad real y el índice lateral con usuario real.
+- Safari/iOS real (solo se probó Chromium).
+
+### Reversión
+- Rápida: `git revert -m 1 6642811` + push.
+- Respaldo completo previo: Drive `Santa Sofia/BACKUP-portal-completo-2026-11-12-pre-rediseno-glass/`
+  (bundle + tar.gz + manifiesto, commit `95c17bf`).
