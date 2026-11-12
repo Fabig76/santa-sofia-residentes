@@ -1240,7 +1240,8 @@ const M = {
   },
 
   async cancelarReserva(idReserva) {
-    if (!confirm('¿Confirmas que quieres cancelar la reserva ' + idReserva + '?\n\nNo se puede cancelar con menos de 24 horas de anticipación.')) return;
+    // Texto sincronizado con MUDANZAS_CANCELACION_HORAS (apps-script/Codigo.gs:1323)
+    if (!confirm('¿Confirmas que quieres cancelar la reserva ' + idReserva + '?\n\nSolo se puede cancelar hasta 12 horas antes del inicio de la mudanza. Si faltan menos de 12 horas, contacta a la administración.')) return;
     const payload = {
       action: 'cancelarMudanza',
       numForm: this.state.numForm,

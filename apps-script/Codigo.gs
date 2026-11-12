@@ -1310,7 +1310,7 @@ function jsonOut(obj) {
 //   - Sábado: 08-10, 10-12 (2 slots, solo mañana)
 //   - Domingo: no hay servicio
 //   - Anticipación mínima: 1 día calendario (se puede reservar desde mañana; aviso real entre ~8 h y ~32 h)
-//   - Cancelación permitida: hasta 24h antes
+//   - Cancelación permitida: hasta 12 h antes del inicio del slot
 //   - Solo Propietario o Tenedor / Otro pueden agendar (CC validada contra Sheet)
 // =====================================================================
 
@@ -1320,7 +1320,7 @@ const MUDANZAS_HEADER_ROW     = 1;
 const MUDANZAS_TORRES         = ['Naranja', 'Amarilla', 'Verde', 'Azul'];
 const MUDANZAS_ASCENSOR       = 'A';
 const MUDANZAS_ANTICIPACION_DIAS = 1;
-const MUDANZAS_CANCELACION_HORAS = 24;
+const MUDANZAS_CANCELACION_HORAS = 12;
 const MUDANZAS_LOCK_TIMEOUT_MS   = 30000;
 const MUDANZAS_CANCELADAS_RECIENTES_DIAS = 30;
 const MUDANZAS_CHECK_REALIZADA    = 'Sí';
