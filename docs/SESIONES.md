@@ -1036,3 +1036,55 @@ Spec: `docs/spec-arrendatarios.md`. Replica el patrón Cerro Azul (`residente.ht
   tocar datos de residentes reales. La regla de 12 h se verificó leyendo el código desplegado.
 - El email de confirmación de reserva no menciona el plazo de 12 h (heredado, no se tocó).
 
+## 12-Nov-2026 — V29b: tipos de mudanza "únicamente de elementos" (enfoque Observaciones)
+
+### Cambio
+- 2 tipos nuevos de mudanza: `Salida de elementos` e `Ingreso de elementos` (valor interno).
+- El detalle de los elementos va en el campo **Observaciones** (col P), que ya existía —
+  **no se creó ninguna columna nueva** (el spec anterior con columna W fue descartado).
+- Al marcar un tipo de elementos, el formulario muestra un aviso indicando que se escriban
+  los elementos autorizados en Observaciones, y **bloquea el envío** si Observaciones va vacío
+  (bloqueo solo en el navegador; el backend no valida).
+- La portería y el panel admin muestran los elementos declarados (solo en tipos de elementos).
+
+### Decisiones del operador
+- D1: los elementos **comparten el slot del ascensor A** con las mudanzas (bloquean el par).
+- D2: descripción obligatoria **solo** para los tipos de elementos.
+- D3: solo Propietario / Tenedor-Otro / Encargado (sin cambios).
+- D4: la descripción **sí** va en los 2 correos de confirmación.
+- Se quita "(opcionales)" del título de la sección 4 "Datos adicionales".
+
+### Cambios en el backend (4 líneas + 1 función nueva; append-only salvo esas 4)
+- `Codigo.gs` L1700: la lista de tipos válidos pasa de 2 a 4.
+- `Codigo.gs` L1701: mensaje "Tipo de autorización inválido."
+- `Codigo.gs` L1917 y L1937: los correos de confirmación usan `etiquetaTipoMudanza()`.
+- `Codigo.gs` L2171: `vigilanteVerMudanzas` expone `observaciones` (**imprescindible**: sin
+  esta línea la portería recibía `undefined` y no veía los elementos).
+- Función nueva al final: `etiquetaTipoMudanza(tipo)`.
+
+### Hoja: CERO cambios
+- `MUDANZAS_NUM_COLS` sigue en **22** → la rama de auto-expansión de `getMudanzasSheet()` no
+  se ejecuta → no se inserta ninguna columna. La columna D solo cambia el texto de las filas
+  nuevas (string → string).
+- Verificado empíricamente que un eventual dropdown (validación de datos) en la columna D
+  **no** bloquea la escritura por API: `setValues` aplica `USER_ENTERED` y la validación de
+  datos solo afecta a la edición manual en la UI.
+
+### Verificación
+- **Correos**: ejecutando la función real de `main` y de la rama en Node, los correos de
+  `Salida` e `Ingreso` son **idénticos byte a byte**; los de elementos cambian 2 líneas
+  ("Tipo: Salida de elementos" + "Elementos: …").
+- E2E con TEST-2000 (12-Nov-2026): 3 reservas de elementos creadas (MD-0018..MD-0020),
+  3 casos de error correctos ("Tipo de autorización inválido."), el par Naranja/Amarilla
+  bloquea correctamente, y los 3 endpoints exponen tipo + observaciones.
+  **Las 3 reservas de prueba se BORRARON** → la pestaña quedó en 17 (12 Ingreso + 5 Salida).
+- No regresión: `lookup`, `adminLookup`, `vigilantesLookup`, `vigilanteVerMudanzas` → `ok:true`.
+- `node --check` OK en app.js, vigilantes.js y admin.js.
+
+### Sin comprobar
+- El rechazo de cancelación por menos de 12 h: con la anticipación de 1 día, el slot más
+  próximo reservable está a ~16,5 h, así que no se pudo provocar un caso <12 h. La constante
+  `MUDANZAS_CANCELACION_HORAS = 12` no fue tocada por V29b (el diff V27→V29 tiene 0
+  coincidencias de esa línea) y una cancelación a 16,5 h se permitió correctamente.
+- El texto real del correo enviado (va al buzón de la administración, no al del sandbox).
+- La UX real del aviso y del bloque de portería (análisis del código, sin navegador).
