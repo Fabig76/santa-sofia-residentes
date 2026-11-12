@@ -541,3 +541,21 @@ input[readonly] {
 select {
   font-weight: 600;
 }
+
+/* ---------- V30: ALERTAS VISIBLES (fix de bug en producción) ----------
+   `assets/arrendatario.css` (cargado también en `index.html`) declara
+   `.alert { display: none; }`. Como `showAlert()` en `js/app.js` solo reescribe
+   `className` a 'alert alert-<tipo>' —quita `hidden` pero NO pone `show`—
+   NINGÚN mensaje `.alert` se veía en `index.html`: ni los errores de
+   "Editar mi registro", ni los de "Crear registro", ni el aviso de mudanza
+   de "únicamente de elementos", ni el indicador "Modo edición activo".
+   Verificado en producción el 12-Nov-2026 (el texto se escribía, pero
+   `display:none` y 0 px de alto).
+
+   Esta regla tiene especificidad (0,2,0) > (0,1,0) de `.alert`, así que gana
+   aunque `arrendatario.css` se cargue después. Los `.alert.hidden` siguen
+   ocultos (esa regla lleva `!important`), de modo que `arrendatario.html`
+   mantiene exactamente el comportamiento actual. */
+.alert:not(.hidden) {
+  display: block;
+}
