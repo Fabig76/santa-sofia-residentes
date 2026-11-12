@@ -196,9 +196,11 @@ Los residentes pueden reservar el ascensor de mudanzas desde la pestaña "Agenda
 
 ## Documentación
 
-- `docs/GUIA-PROYECTO-SANTA-SOFIA.md` — guía completa del proyecto (705 líneas)
+- `docs/GUIA-PROYECTO-SANTA-SOFIA.md` — guía completa del proyecto (1335 líneas)
 - `docs/SESIONES.md` — bitácora cronológica de fixes y eventos relevantes
-- `docs/spec-mudanzas.md` — spec del módulo de mudanzas (633 líneas, OPCIÓN B)
+- `docs/spec-mudanzas.md` — spec del módulo de mudanzas (683 líneas, OPCIÓN B)
+- `docs/spec-mudanzas-tipos-elementos-v29b.md` — spec de los 4 tipos de mudanza, incluidos
+  "Salida de elementos" e "Ingreso de elementos" (V29, 616 líneas)
 - `docs/auditoria-f5-mudanzas.md` — auditoría del frontend mudanzas (F5)
 - `docs/spec-admin-mudanzas.md` — spec del admin v2.0 con tab Mudanzas (F9)
 - `docs/spec-vigilantes-mudanzas.md` — spec del vigilantes v2.0 con sección Mudanzas (F10)

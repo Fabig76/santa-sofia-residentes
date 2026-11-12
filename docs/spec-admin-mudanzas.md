@@ -316,7 +316,10 @@ const A = {
       html += '<td style="padding:8px;">' + fecha + '</td>';
       html += '<td style="padding:8px;">' + hora + '</td>';
       html += '<td style="padding:8px;">' + res.torre + '</td>';
-      html += '<td style="padding:8px;">' + res.tipoMudanza + '</td>';
+      // V29: en los tipos de elementos, la celda Tipo muestra debajo la descripción
+      const esElem = String(res.tipoMudanza || '').indexOf('elementos') !== -1;
+      html += '<td style="padding:8px;">' + esc(res.tipoMudanza) +
+        (esElem ? '<br><small style="color:var(--gris-med);">' + esc(res.observaciones || '(sin descripción)') + '</small>' : '') + '</td>';
       html += '<td style="padding:8px;">' + res.apto + '</td>';
       html += '<td style="padding:8px;">' + res.nombreSolicitante + '<br><small style="color:var(--gris-med);">CC ' + res.ccSolicitante + '</small></td>';
       html += '<td style="padding:8px;">' + res.celular + '</td>';

@@ -895,7 +895,9 @@ Esto evita mostrar errores falsos al usuario.
 
 ### 19.8 Referencias
 
-- `docs/spec-mudanzas.md` — spec completa del módulo (590 líneas, OPCIÓN B)
+- `docs/spec-mudanzas.md` — spec completa del módulo (683 líneas, OPCIÓN B)
+- `docs/spec-mudanzas-tipos-elementos-v29b.md` — spec de los 4 tipos de mudanza, incluidos
+  "Salida de elementos" e "Ingreso de elementos" (V29, 616 líneas)
 - `docs/auditoria-f5-mudanzas.md` — auditoría del frontend (F5) con 10 riesgos mitigados
 - `apps-script/Codigo.gs` — constantes MUDANZAS_*, helpers, endpoints (líneas 1186-1831)
 
