@@ -1088,3 +1088,49 @@ Spec: `docs/spec-arrendatarios.md`. Replica el patrón Cerro Azul (`residente.ht
   coincidencias de esa línea) y una cancelación a 16,5 h se permitió correctamente.
 - El texto real del correo enviado (va al buzón de la administración, no al del sandbox).
 - La UX real del aviso y del bloque de portería (análisis del código, sin navegador).
+
+## 12-Nov-2026 — V30: fix de alertas invisibles en index.html
+
+### El bug (verificado en producción antes y después)
+`assets/arrendatario.css` (cargado también en `index.html:11`) declara `.alert { display: none; }`.
+Como `showAlert()` (`js/app.js:697-703`) solo reescribe `className` a `'alert alert-<tipo>'`
+—quita `hidden` pero NO pone `show`— **ningún mensaje `.alert` se veía en `index.html`**:
+
+| Elemento | Antes | Después |
+|---|---|---|
+| `#alert-edit` ("Ingresa tu N° de formulario.") | `display:none`, 0 px | **`display:block`, 41 px** |
+| `#alert-create` (errores de "Crear registro") | `display:none` | **`display:block`, 41 px** |
+| `#mudTipoAviso` (aviso V29b de "únicamente de elementos") | `display:none` | **`display:block`** |
+| `#editIndicator` ("Modo edición activo") | `display:none` | `display:none` (correcto: es informativo) |
+
+Consecuencia grave: el resident pulsaba "Reservar" sin Observaciones y **no veía ningún error**
+(el bloqueo de `submitReserva` sí se ejecutaba, pero el mensaje no).
+
+### El fix
+**1 línea** en `assets/styles.css` (commit `3233e18`), sin tocar JS:
+```css
+.alert:not(.hidden) { display: block; }
+```
+Especificidad (0,2,0) > (0,1,0) de `.alert` → gana aunque `arrendatario.css` se cargue después.
+Los `.alert.hidden` siguen ocultos (esa regla lleva `!important`).
+
+### Verificación
+- **`index.html`**: error de "Editar" visible (41 px), error de "Crear" visible, aviso V29b de
+  elementos visible.
+- **`arrendatario.html`**: **comportamiento IDÉNTICO** — medido en local contra el original
+  (sin el fix) y en producción: las 5 alertas con `hidden` siguen ocultas, `#alert-exito`
+  (que ya trae `show`) sigue visible, y el error real "Por favor ingrese el N° de apartamento"
+  se muestra igual (41 px). **Cero regresión.**
+- Ningún otro archivo tocado. Sin cambios de backend ni de datos. Reversible con `git revert`.
+
+### Origen
+Auditoría del paquete "Rediseño Glass" del analista (Drive id `12pQrMyVSbWWolFC9Gbqmh__157nLUrCm`),
+que también lleva esta misma regla en su `theme.css`. Se aplicó **por separado** para no
+acoplar el arreglo de un bug al rediseño visual completo.
+
+### Pendiente del rediseño (NO aplicado)
+- 🔴 En tema oscuro el **comprobante impreso** sale ilegible (`@media print` no reinicia
+  `--gris-tx`): 19 elementos con texto claro sobre papel blanco.
+- 🟡 En móvil la portada 3D empuja las pestañas por debajo del fold (~541 px).
+- 🟡 El botón de tema queda fuera del grupo de pestañas (convención de UI del operador).
+- 🟡 El azul de marca pasa a verde `#1F5F4A`; los radios pasan de 16 a 18 px.
