@@ -132,7 +132,16 @@ Notas:
 - Sin paginación (tabla chica, máximo 100 reservas/mes esperado).
 - No envía emails.
 - Reusa getMudanzasSheet(), normalizarHora(), formatDateOnly() de V17.
+- `observaciones` = String(col P), '' si vacío. En `Salida de elementos` / `Ingreso de elementos` (V29)
+  contiene los elementos autorizados. `tipoMudanza` puede valer `Salida`, `Ingreso`,
+  `Salida de elementos` o `Ingreso de elementos`.
 ```
+
+### Celda "Tipo" en la tabla (V29, `js/admin.js`)
+
+- Muestra `tipoMudanza` y, **solo** en tipos de elementos (`indexOf('elementos') !== -1`), debajo en letra
+  pequeña (`<small>`, gris) el texto de `observaciones`, o "(sin descripción)" si está vacío.
+- `Salida` / `Ingreso` se muestran igual que antes de V29. El número de columnas de la tabla no cambia.
 
 ### Diferencia con misReservas (V17)
 

@@ -1,7 +1,7 @@
 # SPEC V29b — Tipos de mudanza "únicamente de elementos" (enfoque Observaciones)
 
 Fecha: 12-Nov-2026 · Repo `/root/santa-sofia-residentes` @ `d96c665` · Producción: Apps Script V28.
-Estado: **SPEC FINAL — implementado en la rama `feature/v29b-tipos-elementos` (sin merge, sin deploy).**
+Estado: **SPEC FINAL — implementado en la rama `feature/v29b-tipos-elementos` y desplegado en producción (Apps Script V29, 12-Nov-2026 15:27, E2E OK). Sin merge a `main`.**
 Sustituye a `docs/spec-mudanzas-tipos-elementos.md` (DESCARTADO: columna W nueva, NUM_COLS 22→23).
 Análisis de base: `/tmp/ss-v29b-alcance.md`.
 

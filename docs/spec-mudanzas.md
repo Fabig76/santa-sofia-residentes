@@ -48,7 +48,8 @@ pero el bloqueo se hace por **lógica del backend** (helper `parDeTorre()`).
 | Límite de reservas por residente | sin límite ← asumido igual |
 | Campos obligatorios | solo Torre + Fecha + Slot |
 | Campos opcionales | Empresa mudanza, Placa vehículo, Observaciones |
-| Tipo de autorización | Salida del arrendatario actual / Ingreso del nuevo arrendatario |
+| Tipo de autorización | 4 tipos: Salida del arrendatario actual (`Salida`) / Ingreso del nuevo arrendatario (`Ingreso`) / Salida únicamente de elementos (`Salida de elementos`) / Ingreso únicamente de elementos (`Ingreso de elementos`) ← los 2 de elementos añadidos en V29 (12-Nov-2026) |
+| Descripción de elementos | Obligatoria en los tipos de elementos, en Observaciones (col P). Bloqueo solo en el navegador; el backend no la valida (ver C8.7). Spec: `docs/spec-mudanzas-tipos-elementos-v29b.md` |
 | Diligencia autorizada | **"Propietario" o "Tenedor / Otro"** ← confirmado. NO se permite "Arrendatario" ni se agrega "Inmobiliaria" como nuevo valor (ver §11.1) |
 | Notificaciones | email al admin (santasofia.clubresidencial@gmail.com) + email al residente (correo del Sheet col 8) ← confirmado |
 | Email admin | **santasofia.clubresidencial@gmail.com** ← confirmado |
@@ -111,7 +112,7 @@ El operador confirmó: **OPCIÓN B** — los pares de torres comparten ascensor.
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │ Registros (203 cols, INTOCAS)                           │ │
 │  │ Entregas (INTOCAS)                                      │ │
-│  │ Mudanzas  (NUEVA, 19 cols)                              │ │
+│  │ Mudanzas  (22 cols: 19 + T..V)                          │ │
 │  └────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -123,14 +124,14 @@ El operador confirmó: **OPCIÓN B** — los pares de torres comparten ascensor.
 
 ---
 
-## 3. ESQUEMA DE LA PESTAÑA `Mudanzas` (NUEVA, 19 COLUMNAS)
+## 3. ESQUEMA DE LA PESTAÑA `Mudanzas` (22 COLUMNAS: 19 de V17 + 3 de vigilancia)
 
 | Col | Index | Campo | Tipo | Origen |
 |---|---|---|---|---|
 | A | 0 | ID reserva | str | generado server-side: MD-0001, MD-0002… |
 | B | 1 | NumForm | str | link a Registros col A |
 | C | 2 | N° Apto | str | link a Registros col D |
-| D | 3 | TipoMudanza | str | "Salida" \| "Ingreso" (input usuario) |
+| D | 3 | TipoMudanza | str | "Salida" \| "Ingreso" \| "Salida de elementos" \| "Ingreso de elementos" (input usuario; los 2 últimos desde V29) |
 | E | 4 | Torre | str | "Naranja" \| "Amarilla" \| "Verde" \| "Azul" (input usuario — torre donde vive el residente) |
 | F | 5 | Ascensor | str | siempre "A" (forzado server-side) |
 | G | 6 | Fecha mudanza | date | YYYY-MM-DD (input usuario) |
@@ -142,12 +143,16 @@ El operador confirmó: **OPCIÓN B** — los pares de torres comparten ascensor.
 | M | 12 | Correo notificación | str | denormalizado desde Registros v[7] |
 | N | 13 | Empresa mudanza | str | input usuario (opcional) |
 | O | 14 | Placa vehículo | str | input usuario (opcional) |
-| P | 15 | Observaciones | str | input usuario (opcional) |
+| P | 15 | Observaciones | str | input usuario (opcional en Salida/Ingreso; en los tipos de elementos contiene los elementos autorizados y el navegador la exige) |
 | Q | 16 | Fecha reserva | datetime | server-side, America/Bogota |
 | R | 17 | Estado | str | "Confirmada" \| "Cancelada" \| "Completada" |
 | S | 18 | Hash dedupe | str | sha256[:16] de (**par**, ascensor, fecha, horaInicio) — ver §1.1 OPCIÓN B |
+| T | 19 | Realizada | str | check-in de portería (módulo de vigilancia, `docs/spec-vigilantes-mudanzas.md`) |
+| U | 20 | Fecha Check | datetime | check-in de portería |
+| V | 21 | Vigilante | str | check-in de portería |
 
-**Total: 19 columnas** (mismo esquema que Cerro Azul).
+**Total: 22 columnas** (`MUDANZAS_NUM_COLS = 22`). Las 19 primeras (A..S) son el esquema original de V17
+(mismo que Cerro Azul); T..V las añadió el módulo de vigilancia. V29 no añade columnas.
 
 **Fila de encabezados (fila 1):** MAYÚSCULAS, fondo celeste claro, negrita — mismo patrón que `Registros` y `Entregas`.
 
@@ -218,14 +223,16 @@ Importante: la `torre` que devuelve el backend en la respuesta es la del residen
 ```
 Input JSON: {
   numForm, apto, ccProp,                      // verificación (re-validar server-side)
-  tipoMudanza,                                // "Salida" | "Ingreso"
+  tipoMudanza,                                // "Salida" | "Ingreso" | "Salida de elementos" | "Ingreso de elementos" (V29)
   torre, ascensor, fecha, horaInicio, horaFin,
   empresa?, placa?, observaciones?
 }
 Validaciones (todas server-side, en orden, OPCIÓN B):
   1. verificarPropietario (mismo flujo que 4.1)
   2. torre ∈ {"Naranja","Amarilla","Verde","Azul"}, ascensor == "A"
-  3. tipoMudanza ∈ {"Salida","Ingreso"}
+  3. tipoMudanza ∈ {"Salida","Ingreso","Salida de elementos","Ingreso de elementos"} (V29)
+     · si no → "Tipo de autorización inválido."
+     · observaciones NO se valida como obligatoria (ni en tipos de elementos): el bloqueo es solo del navegador
   4. fecha es fecha válida futura ≥ hoy + 1 día calendario
   5. horaInicio/horaFin ∈ slots predefinidos
   6. NO existe ya reserva "Confirmada" en el PAR al que pertenece la torre
@@ -299,6 +306,24 @@ Notas:
 - No hay límite de cantidad — el residente ve TODAS sus reservas.
 - Si no tiene reservas → devuelve `reservas: []` (no error).
 ```
+
+### 4.6 GET `?action=vigilanteVerMudanzas` — contrato de `observaciones` (V29)
+
+Endpoint de la portería (token `VIGILANTES_TOKEN`), especificado en `docs/spec-vigilantes-mudanzas.md` §4.1.
+Desde V29 (`Codigo.gs` L2174) cada reserva incluye `observaciones` (col P):
+
+```
+reservas: [{ idReserva, numForm, apto, tipoMudanza, torre, ascensor, fecha, horaInicio, horaFin,
+             nombrePropietario, estado, realizada, fechaCheck, vigilante,
+             observaciones,          // String(col P), '' si vacío — nuevo en V29
+             rowNumber }]
+```
+
+- Sin este campo la portería recibía `undefined` y no podía mostrar los elementos autorizados.
+- `misReservas` (4.5) y `adminListarReservasMudanzas` ya exponían `observaciones` antes de V29.
+- Correos de confirmación (V29): el tipo se muestra con `etiquetaTipoMudanza(tipo)` (`Salida` →
+  "Salida de arrendatario"; los tipos de elementos se muestran tal cual) y, solo en tipos de elementos,
+  una línea "Elementos: …". Los correos de `Salida` / `Ingreso` no cambian.
 
 ---
 
@@ -529,7 +554,23 @@ esa reserva se crea pero NO puede cancelarse online: hay que contactar a la admi
 - Los slots 13:00 y 15:00 siempre son cancelables (mín. +1 h / +3 h).
 - En las 17 reservas reales del Sheet (MD-0001..MD-0017) no se ha dado ningún caso.
 
-### C8.7 Backend tira error 500 o timeout
+### C8.7 Reserva de elementos sin Observaciones (V29)
+
+**Escenario:** una reserva `Salida de elementos` / `Ingreso de elementos` llega con Observaciones vacío
+(llamada directa a la API, o un navegador que no ejecuta el bloqueo de `js/app.js`).
+
+**Probabilidad:** BAJA (el formulario bloquea el envío con "Escriba en Observaciones (sección 4) los elementos autorizados.")
+**Impacto si ocurre:** BAJO (la reserva se guarda, pero no dice qué elementos están autorizados)
+**Comportamiento real:**
+1. El backend **no** valida Observaciones: `reservarMudanza` guarda la reserva igual que cualquier otra.
+2. La portería (`vigilanteVerMudanzas` → `js/vigilantes.js`) muestra en el bloque "📦 Elementos autorizados:"
+   el texto en rojo "(no indicados — consultar a la administración)".
+3. El panel admin muestra "(sin descripción)" bajo el tipo.
+
+**Mitigación:** el vigilante consulta a la administración antes de dejar pasar elementos. El bloqueo del
+navegador es una ayuda de UX, no una garantía de integridad del dato.
+
+### C8.8 Backend tira error 500 o timeout
 
 **Probabilidad:** BAJA
 **Impacto si ocurre:** MEDIO (usuario ve error genérico)
@@ -538,7 +579,7 @@ esa reserva se crea pero NO puede cancelarse online: hay que contactar a la admi
 2. No se duplican reservas porque el LockService garantiza atomicidad
 3. Admin revisa logs de Apps Script si el error persiste
 
-### C8.8 Cambio de URL del Web App (nueva implementación, no nueva versión)
+### C8.9 Cambio de URL del Web App (nueva implementación, no nueva versión)
 
 **Probabilidad:** MUY BAJA (solo si se hace redeploy con breaking change)
 **Impacto si ocurre:** ALTO (frontend queda desconectado)

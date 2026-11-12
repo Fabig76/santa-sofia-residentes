@@ -823,8 +823,12 @@ Los residentes pueden reservar el ascensor de mudanzas desde la pestaña "Agenda
 | `action=reservarMudanza` | POST | Crea una reserva (con LockService) |
 | `action=cancelarMudanza` | POST | Cancela una reserva (hasta 12 h antes del inicio) |
 
-**Sheet nueva pestaña "Mudanzas"** — 19 columnas:
-- ID Reserva, N° Formulario, N° Apartamento, Tipo Mudanza, Torre, Ascensor, Fecha Mudanza, Hora Inicio, Hora Fin, Nombre Propietario, CC Propietario, Celular, Correo, Empresa Mudanza, Placa Vehiculo, Observaciones, Fecha Reserva, Estado, Hash Dedupe.
+Nota V29: `?action=vigilanteVerMudanzas` (portería, ver `docs/spec-vigilantes-mudanzas.md`) expone también `observaciones` (col P) en cada reserva, igual que `misReservas` y `adminListarReservasMudanzas`. Sin ese campo la portería no puede mostrar los elementos autorizados.
+
+**Sheet nueva pestaña "Mudanzas"** — 22 columnas (A..V, `MUDANZAS_NUM_COLS = 22`):
+- ID Reserva, N° Formulario, N° Apartamento, Tipo Mudanza, Torre, Ascensor, Fecha Mudanza, Hora Inicio, Hora Fin, Nombre Propietario, CC Propietario, Celular, Correo, Empresa Mudanza, Placa Vehiculo, Observaciones, Fecha Reserva, Estado, Hash Dedupe, Realizada, Fecha Check, Vigilante.
+- Las 19 primeras (A..S) son del módulo V17; Realizada, Fecha Check y Vigilante (T..V) las añadió el módulo de vigilancia (`docs/spec-vigilantes-mudanzas.md`).
+- V29 no añade columnas: los elementos de los tipos "únicamente de elementos" se guardan en Observaciones (col P).
 
 Se crea **idempotentemente** al primer uso (función `getMudanzasSheet()` en `Codigo.gs`).
 
@@ -841,7 +845,8 @@ Se crea **idempotentemente** al primer uso (función `getMudanzasSheet()` en `Co
 | Anticipación mínima | 1 día calendario (desde mañana; aviso real ~8 h–~32 h) |
 | Cancelación permitida | hasta 12 horas antes del inicio del slot |
 | Diligencia autorizada | "Propietario" o "Tenedor / Otro" (NO "Arrendatario", NO se agrega "Inmobiliaria") |
-| Tipo de mudanza | "Salida" (del arrendatario actual) o "Ingreso" (del nuevo arrendatario) |
+| Tipo de mudanza | 4 valores (col D): `Salida` (del arrendatario actual), `Ingreso` (del nuevo arrendatario), `Salida de elementos` e `Ingreso de elementos` (V29, "únicamente de elementos") |
+| Descripción de elementos | Obligatoria en `Salida de elementos` / `Ingreso de elementos`: se escribe en Observaciones (col P). Bloqueo solo en el navegador (`js/app.js`); el backend no la valida. En `Salida` / `Ingreso` Observaciones sigue opcional |
 | Email admin | santasofia.clubresidencial@gmail.com |
 | Prefijo ID reserva | MD-0001, MD-0002, ... |
 
@@ -886,6 +891,7 @@ Esto evita mostrar errores falsos al usuario.
 |---|---|---|
 | V16 | 04-Oct-2026 17:46 | Módulo inicial (verificarPropietario, dispMudanzas, reservarMudanza, cancelarMudanza, getMudanzasSheet idempotente) |
 | V17 | 04-Oct-2026 18:19 | + endpoint misReservas (lista reservas del numForm/apto) |
+| V29 | 12-Nov-2026 15:27 | Tipos `Salida de elementos` / `Ingreso de elementos` (lista de tipos válidos 2→4), `etiquetaTipoMudanza()` en correos de confirmación, `vigilanteVerMudanzas` expone `observaciones`. Sin columnas nuevas. Spec: `docs/spec-mudanzas-tipos-elementos-v29b.md` |
 
 ### 19.8 Referencias
 

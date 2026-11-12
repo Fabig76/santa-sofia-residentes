@@ -51,8 +51,8 @@ Arquitectura:
   - Vista 2: Formulario (tipo, torre, fecha+horario, datos adicionales).
   - Vista 3: Confirmación (muestra ID Reserva + botones "Hacer otra" / "Ver mis reservas").
   - Vista 4: Mis reservas (lista todas, permite cancelar Confirmadas).
-- **Sheet nueva pestaña "Mudanzas"** — 19 columnas, creada idempotentemente al primer uso.
-- **Reglas:** 1 día calendario de anticipación (se puede reservar desde mañana), cancelación hasta 12 h antes del inicio, slots L-V (08-10,10-12,13-15,15-17), sábado (08-10,10-12), domingo no hay servicio.
+- **Sheet nueva pestaña "Mudanzas"** — 22 columnas (A..V: 19 del módulo V17 + Realizada, Fecha Check, Vigilante del módulo de vigilancia), creada idempotentemente al primer uso.
+- **Reglas:** 4 tipos de mudanza (`Salida`, `Ingreso`, `Salida de elementos`, `Ingreso de elementos` — los 2 últimos desde V29), 1 día calendario de anticipación (se puede reservar desde mañana), cancelación hasta 12 h antes del inicio, slots L-V (08-10,10-12,13-15,15-17), sábado (08-10,10-12), domingo no hay servicio.
 - **OPCIÓN B** — Las 4 torres (Naranja, Amarilla, Verde, Azul) están agrupadas en 2 pares que comparten ascensor: Naranja+Amarilla, Verde+Azul. Un slot ocupado en una torre bloquea el mismo slot en la otra torre del par.
 
 **Deploy Admin v2.0** (05-Oct-2026, Apps Script Versión 18):
@@ -161,6 +161,22 @@ Los residentes pueden reservar el ascensor de mudanzas desde la pestaña "Agenda
 - Tener un SS-XXXX activo (haber enviado al menos el formulario de residentes una vez).
 - Ser el propietario del inmueble o el encargado autorizado (la cédula del propietario debe coincidir).
 - Reservar con al menos 1 día calendario de anticipación (desde el día siguiente).
+
+**Tipos de mudanza (4, desde Apps Script V29 del 12-Nov-2026):**
+
+| Texto visible del radio | Valor interno (col D) | Descripción obligatoria |
+|---|---|---|
+| **Salida** del arrendatario actual | `Salida` | No (Observaciones opcional) |
+| **Ingreso** del nuevo arrendatario | `Ingreso` | No (Observaciones opcional) |
+| **Salida** únicamente de elementos | `Salida de elementos` | Sí, en el campo Observaciones |
+| **Ingreso** únicamente de elementos | `Ingreso de elementos` | Sí, en el campo Observaciones |
+
+- Al marcar un tipo de elementos aparece un aviso en la sección "1 Tipo de autorización" que pide escribir los elementos autorizados en Observaciones (sección 4 "Datos adicionales").
+- El navegador bloquea el envío si Observaciones va vacío en un tipo de elementos. El backend **no** lo valida: si llega vacío, se guarda y la portería ve "(no indicados — consultar a la administración)" en rojo.
+- Los elementos se guardan en la columna Observaciones (col P), que ya existía: **no hay columna nueva** (la pestaña sigue con 22 columnas).
+- Portería (`vigilantes.html`) muestra el bloque "📦 Elementos autorizados:" y el panel admin muestra la descripción bajo el tipo, **solo** en los tipos de elementos. Las reservas `Salida`/`Ingreso` no cambian de aspecto.
+- Correos de confirmación: el tipo sale con etiqueta legible (`etiquetaTipoMudanza()`) y, solo en tipos de elementos, una línea "Elementos: …". Los correos de `Salida`/`Ingreso` no cambian.
+- Spec: `docs/spec-mudanzas-tipos-elementos-v29b.md`.
 
 **Ascensores disponibles:**
 - 4 torres (Naranja, Amarilla, Verde, Azul), agrupadas en 2 pares que comparten ascensor:
