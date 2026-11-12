@@ -1009,10 +1009,16 @@ Spec: `docs/spec-arrendatarios.md`. Replica el patrón Cerro Azul (`residente.ht
   `app.js` idénticos a `main`.
 
 ### DESPLEGADO EN PRODUCCIÓN (12-Nov-2026)
-- **Backend:** Apps Script Versión 27, 12-Nov-2026 13:18. Mismo deploy ID
+- **Backend:** Apps Script **Versión 28**, 12-Nov-2026 13:50. Mismo deploy ID
   `AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ`.
   `dispMudanzas` devuelve `minFecha` = mañana (2026-11-13) → regla nueva activa.
   Estable 5/5 JSON en `/dev` y en `/exec` (sin degradación del gateway).
+- **Zona horaria CONFIRMADA por el propio backend** (`?action=tzInfo`, nuevo en V28):
+  `scriptTimeZone = America/Bogota`, offset 300 min (UTC-5). El operador también lo verificó en
+  Configuración del proyecto: `(GMT-05:00) hora estándar de Colombia – Bogotá`.
+- **Fix de TZ verificado:** `cancelarMudanza` usa ahora `new Date(fecha+'T'+hora+':00-05:00')`.
+  Simulado en Node forzando TZ: con `America/Bogota` da 20.0 h; con `Europe/Madrid` el código viejo
+  daba 14.0 h y el nuevo sigue dando 20.0 h → el cálculo ya no depende de la TZ del proyecto.
 - **Frontend:** merge a `main` (`e2b3672`) + push. GitHub Pages sirve la versión nueva;
   12/12 archivos publicados con md5 idéntico al repo.
 - **Archivos en Drive:** `Santa Sofia/v27-1dia-cancelacion-12h/` (id
