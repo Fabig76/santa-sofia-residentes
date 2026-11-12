@@ -239,7 +239,7 @@ async function cargarMudanzas() {
 function renderMudanzas(reservas) {
   const c = $('#mudList');
   if (!reservas.length) {
-    c.innerHTML = '<div style="padding:16px; background:#F8F8F8; border-radius:8px; color:var(--gris-med); text-align:center; font-size:13px;">No hay mudanzas registradas para esta fecha.</div>';
+    c.innerHTML = '<div style="padding:16px; background:var(--input-off, #F8F8F8); border-radius:14px; color:var(--gris-med); text-align:center; font-size:13px;">No hay mudanzas registradas para esta fecha.</div>';
     return;
   }
   let html = '';
@@ -247,7 +247,7 @@ function renderMudanzas(reservas) {
     const estadoColor = r.estado === 'Confirmada' ? 'var(--ok)' : (r.estado === 'Cancelada' ? 'var(--err)' : 'var(--gris-med)');
     const yaRealizada = r.realizada === 'Sí';
     const yaNoRealizada = r.realizada === 'No';
-    html += '<div style="border:1px solid var(--gris-borde); border-radius:8px; padding:14px; margin-bottom:10px; background:white;">';
+    html += '<div style="border:1px solid var(--gris-borde); border-radius:8px; padding:14px; margin-bottom:10px; background:var(--surface-2, white);">';
     html += '<div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">';
     html += '<div>';
     html += '<div style="font-family:monospace; font-weight:bold; color:var(--azul-osc); font-size:14px;">' + escapeHtml(r.idReserva) + '</div>';
