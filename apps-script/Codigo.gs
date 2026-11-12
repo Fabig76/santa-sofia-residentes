@@ -310,6 +310,27 @@ function doGet(e) {
     if (action === 'nextId') {
       return jsonOut({ ok: true, nextId: getNextFormId() });
     }
+    // V27-diag: diagnostico de zona horaria (SOLO LECTURA, no escribe nada).
+    // Devuelve la TZ del proyecto y la interpretacion de un string sin offset,
+    // que es justo lo que usa cancelarMudanza() en L1809.
+    if (action === 'tzInfo') {
+      const ahora = new Date();
+      const muestra = '2026-11-14T08:00:00';
+      const interp = new Date(muestra);
+      return jsonOut({
+        ok: true,
+        scriptTimeZone: Session.getScriptTimeZone(),
+        ahoraUtc: ahora.toISOString(),
+        ahoraBogota: Utilities.formatDate(ahora, 'America/Bogota', 'yyyy-MM-dd HH:mm:ss'),
+        offsetScriptMin: ahora.getTimezoneOffset(),
+        muestraSinOffset: muestra,
+        muestraInterpretadaUtc: interp.toISOString(),
+        offsetMuestraMin: interp.getTimezoneOffset(),
+        veredicto: (interp.getTimezoneOffset() === 300)
+          ? 'OK: sin offset se interpreta como Bogota (UTC-5)'
+          : 'ALERTA: sin offset NO se interpreta como Bogota'
+      });
+    }
     if (action === 'lookup') {
       const numForm = String(e.parameter.numForm || '').trim();
       const apto = String(e.parameter.apto || '').trim();
