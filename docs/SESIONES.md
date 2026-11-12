@@ -1000,7 +1000,6 @@ Spec: `docs/spec-arrendatarios.md`. Replica el patrón Cerro Azul (`residente.ht
   negativa. **No se ha observado en ninguna de las 17 reservas reales** (aviso mínimo real 43,1 h).
 
 ### Verificación
-- Sin deploy todavía (el operador despliega manualmente "Nueva versión").
 - Diff de `apps-script/Codigo.gs` contra `main`: exactamente 4 líneas (L1312-1313 comentarios,
   L1322-1323 constantes); ninguna función editada.
 - `node --check js/app.js` OK. Calendario frontend `+2` → `+1` (sincronizado con la constante).
@@ -1008,9 +1007,26 @@ Spec: `docs/spec-arrendatarios.md`. Replica el patrón Cerro Azul (`residente.ht
   solo quedan las menciones históricas "(antes 2 días)" / "(antes 24 h)" en spec-mudanzas.md.
 - Reversión: `git revert` de los 2 commits de código (en un clon temporal) deja `Codigo.gs` y
   `app.js` idénticos a `main`.
-- NO probado en runtime (sin deploy, sin POST al Web App).
+
+### DESPLEGADO EN PRODUCCIÓN (12-Nov-2026)
+- **Backend:** Apps Script Versión 27, 12-Nov-2026 13:18. Mismo deploy ID
+  `AKfycbzMdiAFqUdBuUDc093SdtgxgSggRFoIn30YqRArXpCSaf4rWIGBILQYLXLgpsLStLvyJQ`.
+  `dispMudanzas` devuelve `minFecha` = mañana (2026-11-13) → regla nueva activa.
+  Estable 5/5 JSON en `/dev` y en `/exec` (sin degradación del gateway).
+- **Frontend:** merge a `main` (`e2b3672`) + push. GitHub Pages sirve la versión nueva;
+  12/12 archivos publicados con md5 idéntico al repo.
+- **Archivos en Drive:** `Santa Sofia/v27-1dia-cancelacion-12h/` (id
+  `11O9DdU-N46F6yx70kPksDyb3BlbK_8DF`) con `Codigo.gs`, `app.js`, `index.html` verificados por md5.
+- **No regresión verificada:** 17 reservas (MD-0001..MD-0017), `nextId` SS-0119,
+  `lookup`/`adminLookup`/`vigilantesLookup`/`vigilanteVerMudanzas`/`adminListarReservasMudanzas`
+  todos `ok:true`.
 
 ### Sin comprobar
 - La zona horaria del proyecto Apps Script (no hay `appsscript.json` en el repo): afecta a
-  `cancelarMudanza`, que interpreta la hora del slot en la zona del script. Pendiente de que el
-  operador lo compruebe en Configuración del proyecto.
+  `cancelarMudanza`, que interpreta la hora del slot en la zona del script. Si no está en
+  `America/Bogota`, el umbral real de 12 h se desvía. **Pendiente de que el operador lo compruebe
+  en Configuración del proyecto.**
+- No se hizo ningún POST de escritura contra producción (ni reserva, ni cancelación) para no
+  tocar datos de residentes reales. La regla de 12 h se verificó leyendo el código desplegado.
+- El email de confirmación de reserva no menciona el plazo de 12 h (heredado, no se tocó).
+

@@ -1916,7 +1916,9 @@ function enviarEmailConfirmacionResidenteMud(row) {
     'Recuerde: la vigilancia NO permite ingreso en dias festivos, ' +
     'aunque usted tenga reserva. Verifique que la fecha seleccionada no sea festivo.\n\n' +
     'Para cancelar su reserva, ingrese nuevamente al formulario con su ' +
-    'N° de formulario, apartamento y cedula del propietario.\n\n' +
+    'N° de formulario, apartamento y cedula del propietario.\n' +
+    'Solo se puede cancelar hasta 12 horas antes del inicio de la mudanza.\n' +
+    'Si faltan menos de 12 horas, contacte a la administracion.\n\n' +
     '--\nSanta Sofía Club Residencial V.I.S — Sistema de agendamiento de mudanzas\n';
   MailApp.sendEmail(to, subject, body);
 }
