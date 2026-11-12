@@ -1827,7 +1827,12 @@ function cancelarMudanza(data) {
 
   const fechaMudanza = formatDateOnly(found.values[COL_MUD_FECHA]);
   const horaInicio = normalizarHora(found.values[COL_MUD_HORA_INI]);
-  const fechaHoraMudanza = new Date(fechaMudanza + 'T' + horaInicio + ':00');
+  // V27-fix TZ: el slot vive en hora de Colombia (UTC-5 fijo, sin horario de verano desde 1993).
+  // El offset explicito '-05:00' hace que el calculo NO dependa de la zona horaria del proyecto
+  // Apps Script. Antes era new Date(fecha+'T'+hora+':00') SIN offset, que se interpretaba en la
+  // TZ del script: si el proyecto no estaba en America/Bogota, el umbral de MUDANZAS_CANCELACION_HORAS
+  // se desviaba (p.ej. America/New_York en verano = 1 h; Europe/Madrid = 6 h).
+  const fechaHoraMudanza = new Date(fechaMudanza + 'T' + horaInicio + ':00-05:00');
   const ahora = new Date();
   const diffHoras = (fechaHoraMudanza - ahora) / (1000 * 60 * 60);
   if (diffHoras < MUDANZAS_CANCELACION_HORAS) {
