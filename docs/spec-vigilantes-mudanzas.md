@@ -39,12 +39,14 @@ Refactor de vigilantes.html de Santa Sofía para añadir una **sección de mudan
 | Check-in | vigilante marca `Sí` / `No` + su nombre (libre, hasta 100 chars) |
 | Concurrencia | LockService.getScriptLock al escribir check-in |
 | Cancelación | Vigilante NO cancela (lo hace residente o admin) |
+| Elementos autorizados (V29) | En `Salida de elementos` / `Ingreso de elementos` la tarjeta muestra el bloque "📦 Elementos autorizados:" con el texto de `observaciones` (col P). Solo en esos 2 tipos |
+| Colores | El color de estado (Confirmada / Cancelada) no cambia. No hay colores por tipo de mudanza |
 
 ---
 
 ## 3. CAMBIO ESTRUCTURAL — SHEET MUDANZAS
 
-**Estado actual (V18):** 19 columnas (A..S).
+**Estado previo (V18, histórico):** 19 columnas (A..S). **Estado actual (V29):** 22 columnas (A..V); V29 no añade columnas.
 
 **Nuevo estado (V19):** 22 columnas (A..V), agregando 3 al final:
 
@@ -81,7 +83,8 @@ Algoritmo:
   - Ordena: Confirmadas primero, luego por fecha ascendente
   - Retorna lista con {idReserva, numForm, apto, tipoMudanza, torre,
     ascensor, fecha, horaInicio, horaFin, nombrePropietario, estado,
-    realizada, fechaCheck, vigilante, rowNumber}
+    realizada, fechaCheck, vigilante, observaciones, rowNumber}
+    · observaciones = String(col P), '' si vacío (añadido en V29, Codigo.gs L2174)
 
 Output:  {ok: true, reservas: [...], total: N}
 Output ERR (sin auth): {ok: false, error: "Token invalido."}
@@ -89,7 +92,21 @@ Output ERR (sin auth): {ok: false, error: "Token invalido."}
 Notas:
 - Devuelve TODAS las reservas del Sheet (no filtra por numForm).
 - Datos reducidos para privacidad: SIN correo, SIN celular, SIN cédula.
+- `observaciones` (V29): sin esta línea la portería recibía `undefined` y no podía mostrar los
+  elementos autorizados. Se envía en todas las reservas, pero la UI solo la usa en los tipos de elementos.
 ```
+
+#### 4.1.1 Render de la tarjeta en `js/vigilantes.js` (V29)
+
+- Detección: `String(r.tipoMudanza).indexOf('elementos') !== -1` → solo `Salida de elementos` e
+  `Ingreso de elementos`. `Salida` e `Ingreso` no la cumplen → las 17 reservas existentes
+  (12 `Ingreso` + 5 `Salida`) no cambian de aspecto.
+- Bloque azul (fondo `--azul-claro`, borde izquierdo `--azul`) con "📦 Elementos autorizados:" y el
+  texto de `observaciones` escapado con `escapeHtml()` (`white-space: pre-wrap`).
+- Si `observaciones` llega vacío: "(no indicados — consultar a la administración)" en rojo (`--err`).
+  Puede pasar porque el backend no valida Observaciones; el bloqueo es solo del formulario
+  (ver `docs/spec-mudanzas.md` C8.7).
+- El color de estado de la tarjeta (Confirmada / Cancelada) no cambia; no hay colores por tipo.
 
 ### 4.2 POST `action=vigilanteCheckMudanza`
 

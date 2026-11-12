@@ -920,6 +920,7 @@ const M = {
     $('#mudPlaca').value = '';
     $('#mudObservaciones').value = '';
     $$('input[name="mudTipo"]').forEach(r => r.checked = false);
+    $('#mudTipoAviso').classList.add('hidden');
     $('#btnMudReservar').disabled = true;
     $('#mudSlots').innerHTML = '';
     hideAlert('alert-mud-login');
@@ -950,7 +951,7 @@ const M = {
       $('#btnMudReservar').disabled = true;
     });
     $$('input[name="mudTipo"]').forEach(r => {
-      r.addEventListener('change', () => this.checkFormCompleto());
+      r.addEventListener('change', () => { this.toggleAvisoElementos(); this.checkFormCompleto(); });
     });
   },
 
@@ -1119,11 +1120,21 @@ const M = {
     $('#btnMudReservar').disabled = !ok;
   },
 
+  toggleAvisoElementos() {
+    const t = $$('input[name="mudTipo"]').find(r => r.checked);
+    $('#mudTipoAviso').classList.toggle('hidden', !(t && t.value.indexOf('elementos') !== -1));
+  },
+
   async submitReserva() {
     hideAlert('alert-mud-form');
     const tipoEl = $$('input[name="mudTipo"]').find(r => r.checked);
     if (!tipoEl) { showAlert('alert-mud-form', 'Selecciona el tipo de autorización.', 'err'); return; }
     if (!this.state.fecha || !this.state.horaInicio) { showAlert('alert-mud-form', 'Selecciona un día y un horario.', 'err'); return; }
+    if (tipoEl.value.indexOf('elementos') !== -1 && !$('#mudObservaciones').value.trim()) {
+      showAlert('alert-mud-form', 'Escriba en Observaciones (sección 4) los elementos autorizados.', 'err');
+      $('#mudObservaciones').focus();
+      return;
+    }
 
     const payload = {
       action: 'reservarMudanza',

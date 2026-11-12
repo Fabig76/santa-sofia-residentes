@@ -132,7 +132,16 @@ Notas:
 - Sin paginación (tabla chica, máximo 100 reservas/mes esperado).
 - No envía emails.
 - Reusa getMudanzasSheet(), normalizarHora(), formatDateOnly() de V17.
+- `observaciones` = String(col P), '' si vacío. En `Salida de elementos` / `Ingreso de elementos` (V29)
+  contiene los elementos autorizados. `tipoMudanza` puede valer `Salida`, `Ingreso`,
+  `Salida de elementos` o `Ingreso de elementos`.
 ```
+
+### Celda "Tipo" en la tabla (V29, `js/admin.js`)
+
+- Muestra `tipoMudanza` y, **solo** en tipos de elementos (`indexOf('elementos') !== -1`), debajo en letra
+  pequeña (`<small>`, gris) el texto de `observaciones`, o "(sin descripción)" si está vacío.
+- `Salida` / `Ingreso` se muestran igual que antes de V29. El número de columnas de la tabla no cambia.
 
 ### Diferencia con misReservas (V17)
 
@@ -307,7 +316,10 @@ const A = {
       html += '<td style="padding:8px;">' + fecha + '</td>';
       html += '<td style="padding:8px;">' + hora + '</td>';
       html += '<td style="padding:8px;">' + res.torre + '</td>';
-      html += '<td style="padding:8px;">' + res.tipoMudanza + '</td>';
+      // V29: en los tipos de elementos, la celda Tipo muestra debajo la descripción
+      const esElem = String(res.tipoMudanza || '').indexOf('elementos') !== -1;
+      html += '<td style="padding:8px;">' + esc(res.tipoMudanza) +
+        (esElem ? '<br><small style="color:var(--gris-med);">' + esc(res.observaciones || '(sin descripción)') + '</small>' : '') + '</td>';
       html += '<td style="padding:8px;">' + res.apto + '</td>';
       html += '<td style="padding:8px;">' + res.nombreSolicitante + '<br><small style="color:var(--gris-med);">CC ' + res.ccSolicitante + '</small></td>';
       html += '<td style="padding:8px;">' + res.celular + '</td>';

@@ -262,6 +262,14 @@ function renderMudanzas(reservas) {
     html += '<strong>' + escapeHtml(r.fecha) + '</strong> de ' + escapeHtml(r.horaInicio) + ' a ' + escapeHtml(r.horaFin);
     html += ' — <em>' + escapeHtml(r.nombrePropietario) + '</em>';
     html += '</div>';
+    if (String(r.tipoMudanza || '').indexOf('elementos') !== -1) {
+      html += '<div style="font-size:13px; background:var(--azul-claro); border-left:3px solid var(--azul); padding:8px 10px; border-radius:4px; margin-bottom:8px; white-space:pre-wrap;">';
+      html += '<strong>📦 Elementos autorizados:</strong> ';
+      html += r.observaciones
+        ? escapeHtml(r.observaciones)
+        : '<span style="color:var(--err);">(no indicados — consultar a la administración)</span>';
+      html += '</div>';
+    }
     if (r.realizada) {
       const checkColor = yaRealizada ? 'var(--ok)' : 'var(--err)';
       html += '<div style="font-size:13px; color:' + checkColor + '; margin-bottom:8px;">';

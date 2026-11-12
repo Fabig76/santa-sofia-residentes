@@ -457,7 +457,9 @@ function renderMudanzasTable(reservas, filtros) {
     html += '<td style="padding:8px;">' + esc(fecha) + '</td>';
     html += '<td style="padding:8px;">' + esc(hora) + '</td>';
     html += '<td style="padding:8px;">' + esc(res.torre) + '</td>';
-    html += '<td style="padding:8px;">' + esc(res.tipoMudanza) + '</td>';
+    const esElem = String(res.tipoMudanza || '').indexOf('elementos') !== -1;
+    html += '<td style="padding:8px;">' + esc(res.tipoMudanza) +
+      (esElem ? '<br><small style="color:var(--gris-med);">' + esc(res.observaciones || '(sin descripción)') + '</small>' : '') + '</td>';
     html += '<td style="padding:8px;">' + esc(res.apto) + '</td>';
     html += '<td style="padding:8px;">' + esc(res.nombreSolicitante || '?') + '<br><small style="color:var(--gris-med);">CC ' + esc(res.ccSolicitante || '?') + '</small></td>';
     html += '<td style="padding:8px;">' + esc(res.celular || '?') + '</td>';
